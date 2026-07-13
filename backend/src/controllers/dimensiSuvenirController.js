@@ -1,0 +1,27 @@
+const pool = require('../config/db');
+
+// PBI-08 - Kelola Data Dimensi Suvenir
+// Catatan revisi final: nilai nama dibatasi CHECK constraint hanya 'Kecil', 'Sedang', 'Besar'.
+// Data dasarnya sudah diisi lewat seed.sql, endpoint create disediakan hanya untuk jaga-jaga
+// (mis. re-seed manual) - insert dengan nilai di luar tiga itu akan ditolak oleh database.
+
+async function getAllDimensi(req, res, next) {
+  try {
+    const { rows } = await pool.query('SELECT * FROM dimensi_suvenir ORDER BY dimensi_suvenir_id ASC');
+    res.json(rows);
+  } catch (err) { next(err); }
+}
+
+async function createDimensi(req, res, next) {
+  try {
+    const { nama } = req.body;
+    if (!nama) return res.status(400).json({ message: 'Nama dimensi wajib diisi' });
+    const { rows } = await pool.query(
+      'INSERT INTO dimensi_suvenir (nama) VALUES ($1) RETURNING *',
+      [nama]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) { next(err); }
+}
+
+module.exports = { getAllDimensi, createDimensi };

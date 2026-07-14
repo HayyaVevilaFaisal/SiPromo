@@ -37,3 +37,45 @@ label {
   margin-bottom: 4px;
   color: #33475b;
 }
+
+/* Dual-thumb price range slider (Aset filter) - two overlapping <input type="range">,
+   only the thumbs are interactive so both stay independently draggable. */
+.range-slider input[type="range"].range-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: none;
+  height: 24px;
+  padding: 0;
+  border: none;
+}
+
+.range-slider input[type="range"].range-thumb::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+  background: transparent;
+}
+
+.range-slider input[type="range"].range-thumb::-moz-range-track {
+  background: transparent;
+}
+
+.range-slider input[type="range"].range-thumb::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  pointer-events: auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #155dfc;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.range-slider input[type="range"].range-thumb::-moz-range-thumb {
+  pointer-events: auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #155dfc;
+  cursor: pointer;
+}

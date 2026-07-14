@@ -12,7 +12,7 @@ INSERT INTO tahun_ajaran (tahun_ajaran_id, tahun, semester, tanggal_mulai, tangg
 (2, '2024/2025', 'Genap', '2025-01-01', '2025-07-31', TRUE),
 (3, '2025/2026', 'Ganjil', '2025-08-01', '2025-12-31', TRUE);
 
-INSERT INTO dimensi_suvenir (dimensi_suvenir_id, nama) VALUES
+INSERT INTO dimensi_aset (dimensi_aset_id, nama) VALUES
 (1, 'Kecil'), (2, 'Sedang'), (3, 'Besar');
 
 INSERT INTO lokasi_penyimpanan (lokasi_penyimpanan_id, nama, deskripsi, is_active) VALUES
@@ -33,7 +33,7 @@ INSERT INTO kegiatan (kegiatan_id, tahun_ajaran_id, nama, tanggal, catatan, is_a
 (2, 2, 'Campus Expo', '2025-03-10', 'Kegiatan pameran pendidikan di lingkungan kampus.', TRUE),
 (3, 2, 'Kunjungan SMA Mitra', '2025-04-18', 'Kunjungan siswa SMA ke Program Studi Informatika.', TRUE);
 
-INSERT INTO aset (aset_id, dimensi_suvenir_id, lokasi_penyimpanan_id, nama, harga, stok, threshold_qty, is_active) VALUES
+INSERT INTO aset (aset_id, dimensi_aset_id, lokasi_penyimpanan_id, nama, harga, stok, threshold_qty, is_active) VALUES
 (1, 1, 2, 'Pulpen Informatika', 5000.00, 120, 50, TRUE),
 (2, 2, 2, 'Totebag Informatika', 35000.00, 18, 20, TRUE),
 (3, 2, 1, 'Tumbler Informatika', 60000.00, 8, 10, TRUE),
@@ -62,7 +62,7 @@ INSERT INTO aset_keluar (kegiatan_id, aset_id, qty_out) VALUES
 -- Reset sequence agar ID auto-increment berikutnya tidak bentrok dengan data eksplisit di atas
 SELECT setval(pg_get_serial_sequence('vendor', 'vendor_id'), COALESCE(MAX(vendor_id), 1), TRUE) FROM vendor;
 SELECT setval(pg_get_serial_sequence('tahun_ajaran', 'tahun_ajaran_id'), COALESCE(MAX(tahun_ajaran_id), 1), TRUE) FROM tahun_ajaran;
-SELECT setval(pg_get_serial_sequence('dimensi_suvenir', 'dimensi_suvenir_id'), COALESCE(MAX(dimensi_suvenir_id), 1), TRUE) FROM dimensi_suvenir;
+SELECT setval(pg_get_serial_sequence('dimensi_aset', 'dimensi_aset_id'), COALESCE(MAX(dimensi_aset_id), 1), TRUE) FROM dimensi_aset;
 SELECT setval(pg_get_serial_sequence('lokasi_penyimpanan', 'lokasi_penyimpanan_id'), COALESCE(MAX(lokasi_penyimpanan_id), 1), TRUE) FROM lokasi_penyimpanan;
 SELECT setval(pg_get_serial_sequence('pembelian', 'pembelian_id'), COALESCE(MAX(pembelian_id), 1), TRUE) FROM pembelian;
 SELECT setval(pg_get_serial_sequence('kegiatan', 'kegiatan_id'), COALESCE(MAX(kegiatan_id), 1), TRUE) FROM kegiatan;

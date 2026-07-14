@@ -2,9 +2,9 @@
 export default function NotificationModal({ data, onClose }) {
   return (
     <div style={{
-      position: 'absolute', top: 60, right: 16, background: '#fff',
-      border: '1px solid #e2e8f0', borderRadius: 8, padding: 16, width: 320,
-      boxShadow: '0 4px 12px rgba(0,0,0,0.12)', zIndex: 10,
+      position: 'absolute', top: 54, right: 24, background: '#fff',
+      border: '1px solid #e2e8f0', borderRadius: 14, padding: 16, width: 320,
+      boxShadow: '0 12px 30px rgba(0,0,0,0.12)', zIndex: 10,
     }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>

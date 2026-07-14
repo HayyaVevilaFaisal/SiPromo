@@ -1,9 +1,9 @@
 const pool = require('../config/db');
 const { checkStockThreshold } = require('../utils/stockNotification');
 
-// FR-13, FR-14, FR-15, FR-16, FR-17, UC-07 - Kelola Pencatatan Pembelian Suvenir
+// FR-13, FR-14, FR-15, FR-16, FR-17, UC-07 - Kelola Pencatatan Pembelian Aset
 // Catatan revisi final:
-// - "pembelian_suvenir" -> "detail_pembelian" (kolom suvenir_id -> aset_id)
+// - "pembelian_aset" -> "detail_pembelian" (kolom aset_id)
 // - "pembelian_vendor_tahun" -> "header_pembelian" (struktur sama, hanya berganti nama)
 
 async function getAllPembelian(req, res, next) {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import axiosClient from '../../api/axiosClient';
+import PageHeader from '../../components/common/PageHeader';
 
 // FR-02, UC-08 - Dashboard Ringkasan Aset
 export default function Dashboard() {
@@ -13,7 +14,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h2>Dashboard</h2>
+      <PageHeader title="Dashboard" subtitle="Ringkasan data aset promosi" />
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
         <Card label="Total Penggunaan" value={data.total_penggunaan} />
         <Card label="Nilai Pembelian" value={`Rp${Number(data.nilai_pembelian).toLocaleString('id-ID')}`} />
@@ -21,9 +22,9 @@ export default function Dashboard() {
         <Card label="Total Stok" value={data.total_stok} />
       </div>
 
-      <h3 style={{ marginTop: 24 }}>Suvenir Terbanyak Digunakan</h3>
+      <h3 style={{ marginTop: 24 }}>Aset Terbanyak Digunakan</h3>
       <ul>
-        {data.suvenir_terbanyak_digunakan.map((s) => (
+        {data.aset_terbanyak_digunakan.map((s) => (
           <li key={s.nama}>{s.nama} - {s.total_qty} unit</li>
         ))}
       </ul>

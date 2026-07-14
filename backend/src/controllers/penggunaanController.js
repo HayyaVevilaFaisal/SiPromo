@@ -1,9 +1,9 @@
 const pool = require('../config/db');
 const { checkStockThreshold } = require('../utils/stockNotification');
 
-// FR-10, FR-11, FR-12, UC-06 - Kelola Pencatatan Penggunaan Suvenir
-// Catatan revisi final: tabel penghubung "kegiatan_suvenir" berganti nama menjadi "aset_keluar"
-// dengan kolom "aset_id" (dahulu suvenir_id). Kolom "skala" pada tabel kegiatan DIHAPUS pada
+// FR-10, FR-11, FR-12, UC-06 - Kelola Pencatatan Penggunaan Aset
+// Catatan revisi final: tabel penghubung "kegiatan_aset" berganti nama menjadi "aset_keluar"
+// dengan kolom "aset_id". Kolom "skala" pada tabel kegiatan DIHAPUS pada
 // revisi final, sehingga tidak lagi dikirim/disimpan di sini.
 
 async function getAllKegiatan(req, res, next) {

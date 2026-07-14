@@ -27,8 +27,8 @@ Akun contoh dari `seed.sql` (password sama untuk keduanya): `password123`
 - kaprodi@if.unpar.ac.id
 
 > `schema.sql` dan `seed.sql` sudah disesuaikan dengan revisi final ERD kamu
-> (`ddl_dan_data_dummy_aset_promosi_revisi_final.sql`): tabel utama bernama `aset` (bukan lagi
-> `suvenir`), relasi pembelian lewat `header_pembelian` & `detail_pembelian`, dan penggunaan lewat
+> (`ddl_dan_data_dummy_aset_promosi_revisi_final.sql`): tabel utama bernama `aset`,
+> relasi pembelian lewat `header_pembelian` & `detail_pembelian`, dan penggunaan lewat
 > `aset_keluar`. Lihat bagian "Catatan Desain Revisi Final" di bawah untuk detail lengkap.
 
 ## Menjalankan Frontend
@@ -43,11 +43,11 @@ Jika port backend kamu bukan `5000`, ubah juga target proxy di `frontend/vite.co
 ## Status Implementasi (mengikuti Sprint Backlog)
 
 - **Sprint 1** - Sudah ada kerangka & contoh implementasi penuh: setup proyek, skema DB, login
-  (FR-01), dan CRUD Suvenir (FR-03/FR-04/UC-01) sebagai pola referensi. Vendor, Lokasi
-  Penyimpanan, Tahun Ajaran, Dimensi Suvenir sudah diimplementasikan backend-nya; halaman
-  frontend-nya masih berupa TODO agar dikerjakan mengikuti pola halaman Suvenir.
-- **Sprint 2** - Backend penggunaan & pembelian suvenir (transaksi, update stok otomatis,
-  notifikasi restock) sudah diimplementasikan. Halaman frontend penggunaan/pembelian suvenir
+  (FR-01), dan CRUD Aset (FR-03/FR-04/UC-01) sebagai pola referensi. Vendor, Lokasi
+  Penyimpanan, Tahun Ajaran, Dimensi Aset sudah diimplementasikan backend-nya; halaman
+  frontend-nya masih berupa TODO agar dikerjakan mengikuti pola halaman Aset.
+- **Sprint 2** - Backend penggunaan & pembelian aset (transaksi, update stok otomatis,
+  notifikasi restock) sudah diimplementasikan. Halaman frontend penggunaan/pembelian aset
   masih TODO.
 - **Sprint 3** - Backend dashboard, laporan, dan ekspor PDF sudah diimplementasikan dasar-dasarnya.
   Halaman frontend Dashboard sudah terhubung ke API; halaman Laporan masih TODO.
@@ -56,11 +56,11 @@ Jika port backend kamu bukan `5000`, ubah juga target proxy di `frontend/vite.co
 
 Kode di kerangka ini sudah disesuaikan mengikuti `ddl_dan_data_dummy_aset_promosi_revisi_final.sql`:
 
-- Tabel `suvenir` berganti nama menjadi **`aset`** (primary key `aset_id`). Kolom `vendor_id`
+- Tabel utama bernama **`aset`** (primary key `aset_id`). Kolom `vendor_id`
   dihapus dari tabel ini karena vendor kini hanya terhubung ke transaksi lewat
-  `header_pembelian`, dan `dimensi_suvenir_id` sekarang boleh `NULL` (opsional).
-- Tabel `pembelian_suvenir` -> **`detail_pembelian`**, `kegiatan_suvenir` -> **`aset_keluar`**,
-  `pembelian_vendor_tahun` -> **`header_pembelian`** (kolom `suvenir_id` menjadi `aset_id`).
+  `header_pembelian`, dan `dimensi_aset_id` sekarang boleh `NULL` (opsional).
+- Tabel `pembelian_aset` -> **`detail_pembelian`**, `kegiatan_aset` -> **`aset_keluar`**,
+  `pembelian_vendor_tahun` -> **`header_pembelian`** (kolom `aset_id`).
 - Kolom `vendor.catatan` berganti nama menjadi **`vendor.alamat`** dan sekarang **wajib diisi**
   (alamat fisik atau tautan toko daring). `vendorController.js` sudah menyesuaikan validasinya.
 - Kolom `skala` pada tabel `kegiatan` **dihapus**. `penggunaanController.js` tidak lagi
@@ -68,7 +68,7 @@ Kode di kerangka ini sudah disesuaikan mengikuti `ddl_dan_data_dummy_aset_promos
 - Tabel `pesan_notifikasi` sekarang punya kolom `aset_id` (FK ke `aset`) - ini memperbaiki gap
   desain yang sempat saya catat sebelumnya (dahulu notifikasi tidak terhubung ke aset mana pun).
   `notifikasiController.js` sudah menampilkan nama aset terkait pada setiap notifikasi.
-- `dimensi_suvenir.nama` dan `lokasi_penyimpanan.nama` sekarang dibatasi `CHECK` constraint ke
+- `dimensi_aset.nama` dan `lokasi_penyimpanan.nama` sekarang dibatasi `CHECK` constraint ke
   nilai tertentu saja (`Kecil`/`Sedang`/`Besar` dan `9113`/`9110`/`Laboratorium Sertifikasi`).
   Saat membangun form di frontend, gunakan dropdown dengan pilihan tetap tersebut, bukan input
   bebas - kalau tidak, database akan menolak data yang di luar daftar tersebut.

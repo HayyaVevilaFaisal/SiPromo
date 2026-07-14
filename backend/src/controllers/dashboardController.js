@@ -46,7 +46,7 @@ async function getRingkasan(req, res, next) {
       perlu_restock: Number(perluRestock.rows[0].total),
       total_penggunaan: Number(totalPenggunaan.rows[0].total),
       nilai_pembelian: Number(nilaiPembelian.rows[0].total),
-      suvenir_terbanyak_digunakan: terbanyakDigunakan.rows,
+      aset_terbanyak_digunakan: terbanyakDigunakan.rows,
     });
   } catch (err) { next(err); }
 }

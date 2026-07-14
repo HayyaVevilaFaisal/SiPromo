@@ -11,7 +11,7 @@ DROP TABLE IF EXISTS aset CASCADE;
 DROP TABLE IF EXISTS kegiatan CASCADE;
 DROP TABLE IF EXISTS pembelian CASCADE;
 DROP TABLE IF EXISTS lokasi_penyimpanan CASCADE;
-DROP TABLE IF EXISTS dimensi_suvenir CASCADE;
+DROP TABLE IF EXISTS dimensi_aset CASCADE;
 DROP TABLE IF EXISTS tahun_ajaran CASCADE;
 DROP TABLE IF EXISTS vendor CASCADE;
 
@@ -40,11 +40,11 @@ CREATE TABLE tahun_ajaran (
     CONSTRAINT ck_tahun_ajaran_tanggal CHECK (tanggal_selesai >= tanggal_mulai)
 );
 
--- 3. Tabel Dimensi_Suvenir (nilai dibatasi: Kecil, Sedang, Besar)
-CREATE TABLE dimensi_suvenir (
-    dimensi_suvenir_id SERIAL PRIMARY KEY,
+-- 3. Tabel Dimensi_Aset (nilai dibatasi: Kecil, Sedang, Besar)
+CREATE TABLE dimensi_aset (
+    dimensi_aset_id SERIAL PRIMARY KEY,
     nama VARCHAR(50) NOT NULL UNIQUE,
-    CONSTRAINT ck_dimensi_suvenir_nama CHECK (nama IN ('Kecil', 'Sedang', 'Besar'))
+    CONSTRAINT ck_dimensi_aset_nama CHECK (nama IN ('Kecil', 'Sedang', 'Besar'))
 );
 
 -- 4. Tabel Lokasi_Penyimpanan (nilai dibatasi: 9113, 9110, Laboratorium Sertifikasi)
@@ -80,10 +80,10 @@ CREATE TABLE kegiatan (
         ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
--- 7. Tabel Aset (dahulu bernama suvenir; vendor_id dihapus, dimensi opsional)
+-- 7. Tabel Aset (vendor_id dihapus, dimensi opsional)
 CREATE TABLE aset (
     aset_id SERIAL PRIMARY KEY,
-    dimensi_suvenir_id INTEGER NULL,
+    dimensi_aset_id INTEGER NULL,
     lokasi_penyimpanan_id INTEGER NOT NULL,
     nama VARCHAR(100) NOT NULL,
     harga DECIMAL(12,2) NOT NULL,
@@ -91,7 +91,7 @@ CREATE TABLE aset (
     threshold_qty INTEGER NOT NULL DEFAULT 0,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT fk_aset_dimensi
-        FOREIGN KEY (dimensi_suvenir_id) REFERENCES dimensi_suvenir(dimensi_suvenir_id)
+        FOREIGN KEY (dimensi_aset_id) REFERENCES dimensi_aset(dimensi_aset_id)
         ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT fk_aset_lokasi
         FOREIGN KEY (lokasi_penyimpanan_id) REFERENCES lokasi_penyimpanan(lokasi_penyimpanan_id)
@@ -122,7 +122,7 @@ CREATE TABLE pesan_notifikasi (
         ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
--- 10. Tabel Detail_Pembelian (dahulu pembelian_suvenir)
+-- 10. Tabel Detail_Pembelian (dahulu pembelian_aset)
 CREATE TABLE detail_pembelian (
     pembelian_id INTEGER NOT NULL,
     aset_id INTEGER NOT NULL,
@@ -139,7 +139,7 @@ CREATE TABLE detail_pembelian (
     CONSTRAINT ck_detail_pembelian_unit_price CHECK (unit_price >= 0)
 );
 
--- 11. Tabel Aset_Keluar (dahulu kegiatan_suvenir)
+-- 11. Tabel Aset_Keluar (dahulu kegiatan_aset)
 CREATE TABLE aset_keluar (
     kegiatan_id INTEGER NOT NULL,
     aset_id INTEGER NOT NULL,

@@ -103,9 +103,13 @@ export default function AsetForm({ editing, form, setForm, dimensiList, lokasiLi
                   style={inputStyle}
                 >
                   <option value="" disabled>Pilih lokasi</option>
-                  {lokasiList.map((l) => (
-                    <option key={l.lokasi_penyimpanan_id} value={l.lokasi_penyimpanan_id}>{l.nama}</option>
-                  ))}
+                  {lokasiList
+                    .filter((l) => l.is_active || String(l.lokasi_penyimpanan_id) === String(form.lokasi_penyimpanan_id))
+                    .map((l) => (
+                      <option key={l.lokasi_penyimpanan_id} value={l.lokasi_penyimpanan_id}>
+                        {l.nama}{!l.is_active ? ' (Dihapus)' : ''}
+                      </option>
+                    ))}
                 </select>
               </Field>
             </div>

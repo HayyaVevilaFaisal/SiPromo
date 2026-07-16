@@ -1,8 +1,8 @@
 const pool = require('../config/db');
 
 // FR-06, UC-02 - Kelola Data Lokasi Penyimpanan
-// Catatan revisi final: nilai nama dibatasi CHECK constraint hanya '9113', '9110',
-// atau 'Laboratorium Sertifikasi'. Insert/update dengan nilai lain akan ditolak database.
+// Default terisi 3 lokasi (9113, 9110, Laboratorium Sertifikasi) lewat seed.sql, tapi nama lokasi
+// baru bebas ditambahkan (tidak lagi dibatasi CHECK constraint sejak nama lokasi bisa berkembang).
 
 async function getAllLokasi(req, res, next) {
   try {
@@ -10,11 +10,23 @@ async function getAllLokasi(req, res, next) {
     const conditions = [];
     const values = [];
     let idx = 1;
-    if (search) { conditions.push(`nama ILIKE $${idx++}`); values.push(`%${search}%`); }
-    if (status === 'aktif') conditions.push('is_active = true');
-    else if (status === 'arsip') conditions.push('is_active = false');
+    if (search) { conditions.push(`l.nama ILIKE $${idx++}`); values.push(`%${search}%`); }
+    if (status === 'aktif') conditions.push('l.is_active = true');
+    else if (status === 'arsip') conditions.push('l.is_active = false');
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const { rows } = await pool.query(`SELECT * FROM lokasi_penyimpanan ${where} ORDER BY nama ASC`, values);
+    const { rows } = await pool.query(
+      `SELECT l.*, COALESCE(a.jumlah, 0) AS jumlah_aset
+       FROM lokasi_penyimpanan l
+       LEFT JOIN (
+         SELECT lokasi_penyimpanan_id, COUNT(*) AS jumlah
+         FROM aset
+         WHERE is_active = true
+         GROUP BY lokasi_penyimpanan_id
+       ) a ON a.lokasi_penyimpanan_id = l.lokasi_penyimpanan_id
+       ${where}
+       ORDER BY l.nama ASC`,
+      values
+    );
     res.json(rows);
   } catch (err) { next(err); }
 }

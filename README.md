@@ -68,10 +68,12 @@ Kode di kerangka ini sudah disesuaikan mengikuti `ddl_dan_data_dummy_aset_promos
 - Tabel `pesan_notifikasi` sekarang punya kolom `aset_id` (FK ke `aset`) - ini memperbaiki gap
   desain yang sempat saya catat sebelumnya (dahulu notifikasi tidak terhubung ke aset mana pun).
   `notifikasiController.js` sudah menampilkan nama aset terkait pada setiap notifikasi.
-- `dimensi_aset.nama` dan `lokasi_penyimpanan.nama` sekarang dibatasi `CHECK` constraint ke
-  nilai tertentu saja (`Kecil`/`Sedang`/`Besar` dan `9113`/`9110`/`Laboratorium Sertifikasi`).
-  Saat membangun form di frontend, gunakan dropdown dengan pilihan tetap tersebut, bukan input
-  bebas - kalau tidak, database akan menolak data yang di luar daftar tersebut.
+- `dimensi_aset.nama` masih dibatasi `CHECK` constraint ke nilai tertentu saja
+  (`Kecil`/`Sedang`/`Besar`) - gunakan dropdown dengan pilihan tetap tersebut di frontend, bukan
+  input bebas, kalau tidak database akan menolak data di luar daftar tersebut.
+- `lokasi_penyimpanan.nama` sebelumnya juga dibatasi CHECK constraint ke 3 nilai tetap
+  (`9113`/`9110`/`Laboratorium Sertifikasi`), tapi constraint itu sudah dihapus - lokasi baru
+  boleh ditambah bebas. `seed.sql` tetap mengisi 3 lokasi tersebut sebagai default awal.
 - **Perbaikan penting**: hash password akun contoh di `seed.sql` sebelumnya berupa teks
   placeholder (`$2b$10$dummyhash...`) yang bukan hash bcrypt asli, sehingga login tidak akan
   pernah berhasil walau kredensialnya benar. Sudah diganti dengan hash bcrypt asli untuk

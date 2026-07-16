@@ -34,7 +34,7 @@ async function getAllAset(req, res, next) {
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const { rows } = await pool.query(
-      `SELECT s.*, d.nama AS dimensi_nama, l.nama AS lokasi_nama, v.nama AS vendor_nama
+      `SELECT s.*, d.nama AS dimensi_nama, l.nama AS lokasi_nama, l.is_active AS lokasi_is_active, v.nama AS vendor_nama
        FROM aset s
        LEFT JOIN dimensi_aset d ON d.dimensi_aset_id = s.dimensi_aset_id
        LEFT JOIN lokasi_penyimpanan l ON l.lokasi_penyimpanan_id = s.lokasi_penyimpanan_id

@@ -47,13 +47,12 @@ CREATE TABLE dimensi_aset (
     CONSTRAINT ck_dimensi_aset_nama CHECK (nama IN ('Kecil', 'Sedang', 'Besar'))
 );
 
--- 4. Tabel Lokasi_Penyimpanan (nilai dibatasi: 9113, 9110, Laboratorium Sertifikasi)
+-- 4. Tabel Lokasi_Penyimpanan (default terisi 9113, 9110, Laboratorium Sertifikasi; nama bebas ditambah)
 CREATE TABLE lokasi_penyimpanan (
     lokasi_penyimpanan_id SERIAL PRIMARY KEY,
     nama VARCHAR(100) NOT NULL UNIQUE,
     deskripsi TEXT,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    CONSTRAINT ck_lokasi_penyimpanan_nama CHECK (nama IN ('9113', '9110', 'Laboratorium Sertifikasi'))
+    is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- 5. Tabel Pembelian (vendor & tahun ajaran disimpan lewat header_pembelian)

@@ -315,7 +315,12 @@ export default function Aset() {
                       <Td><span style={{ color: '#155dfc', fontWeight: 700 }}>{row.stok}</span></Td>
                       <Td>{row.threshold_qty}</Td>
                       <Td>{`Rp${Number(row.harga).toLocaleString('id-ID')}`}</Td>
-                      <Td>{row.lokasi_nama}</Td>
+                      <Td>
+                        {row.lokasi_nama}
+                        {row.lokasi_is_active === false && (
+                          <span style={{ color: '#9ca3af', fontSize: 12 }}> (Dihapus)</span>
+                        )}
+                      </Td>
                       <Td>{row.vendor_nama || '-'}</Td>
                       <Td>
                         <span style={{

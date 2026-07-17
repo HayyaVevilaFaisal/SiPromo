@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { MegaphoneIcon } from '../../components/common/icons';
 
 const REMEMBERED_EMAIL_KEY = 'sipromo:rememberedEmail';
 
@@ -55,9 +56,12 @@ export default function Login() {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
           <div style={{
-            width: 48, height: 48, borderRadius: 12, background: '#e2e5ea', flexShrink: 0,
+            width: 48, height: 48, borderRadius: 12, background: '#155dfc', color: '#fff', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
-          />
+          >
+            <MegaphoneIcon size={24} />
+          </div>
           <div>
             <div style={{ fontSize: 18, fontWeight: 700, color: '#111' }}>SiPromo</div>
             <div style={{ fontSize: 12, color: '#6b7280' }}>Informatika UNPAR</div>

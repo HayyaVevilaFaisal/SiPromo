@@ -21,9 +21,9 @@ INSERT INTO lokasi_penyimpanan (lokasi_penyimpanan_id, nama, deskripsi, is_activ
 (3, 'Laboratorium Sertifikasi', 'Penyimpanan aset promosi di Laboratorium Sertifikasi.', TRUE);
 
 INSERT INTO pembelian (pembelian_id, tanggal, status, catatan, nama_file, url_file, is_active) VALUES
-(1, '2025-02-10', 'Selesai', 'Pembelian aset untuk kegiatan open house.', 'nota_pembelian_001.pdf', '/uploads/nota_pembelian_001.pdf', TRUE),
-(2, '2025-03-05', 'Selesai', 'Pembelian brosur untuk kebutuhan promosi semester genap.', 'nota_pembelian_002.pdf', '/uploads/nota_pembelian_002.pdf', TRUE),
-(3, '2025-05-15', 'Draft', 'Rencana pembelian tambahan tumbler dan buku catatan.', NULL, NULL, TRUE);
+(1, '2025-02-10', 'Lunas', 'Pembelian aset untuk kegiatan open house.', 'nota_pembelian_001.pdf', '/uploads/nota_pembelian_001.pdf', TRUE),
+(2, '2025-03-05', 'Lunas', 'Pembelian brosur untuk kebutuhan promosi semester genap.', 'nota_pembelian_002.pdf', '/uploads/nota_pembelian_002.pdf', TRUE),
+(3, '2025-05-15', 'Belum Bayar', 'Rencana pembelian tambahan tumbler dan buku catatan.', NULL, NULL, TRUE);
 
 INSERT INTO header_pembelian (pembelian_id, vendor_id, tahun_ajaran_id) VALUES
 (1, 1, 2), (2, 3, 2), (3, 2, 2);

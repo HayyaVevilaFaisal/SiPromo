@@ -63,7 +63,8 @@ CREATE TABLE pembelian (
     catatan TEXT,
     nama_file VARCHAR(255),
     url_file TEXT,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    CONSTRAINT ck_pembelian_status CHECK (status IN ('Belum Bayar', 'DP', 'Lunas'))
 );
 
 -- 6. Tabel Kegiatan (kolom skala dihapus pada revisi final)

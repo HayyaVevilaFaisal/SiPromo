@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { MegaphoneIcon } from '../common/icons';
 
 // Menu mengikuti use case diagram (UC-01 s.d. UC-10), dikelompokkan seperti rancangan antarmuka
 const menuGroups = [
@@ -39,19 +40,25 @@ export default function Sidebar() {
 
   return (
     <aside style={{
-      width: 256, minHeight: '100vh', borderRight: '1px solid #e2e8f0', background: '#fff',
-      display: 'flex', flexDirection: 'column',
+      width: 256, height: '100vh', borderRight: '1px solid #e2e8f0', background: '#fff',
+      display: 'flex', flexDirection: 'column', flexShrink: 0,
     }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px' }}>
-        <div style={{ width: 40, height: 40, borderRadius: 12, background: '#e2e5ea', flexShrink: 0 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px', flexShrink: 0 }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: 12, background: '#155dfc', color: '#fff', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+        >
+          <MegaphoneIcon size={20} />
+        </div>
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>SiPromo</div>
           <div style={{ fontSize: 12, color: '#6b7280' }}>Informatika UNPAR</div>
         </div>
       </div>
 
-      <nav style={{ flex: 1, paddingBottom: 16 }}>
+      <nav style={{ flex: 1, paddingBottom: 16, overflowY: 'auto' }}>
         {menuGroups.map((group) => (
           <div key={group.label}>
             <div style={{
@@ -87,7 +94,7 @@ export default function Sidebar() {
 
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10, padding: 16,
-        borderTop: '1px solid #e2e8f0',
+        borderTop: '1px solid #e2e8f0', flexShrink: 0,
       }}
       >
         <div style={{

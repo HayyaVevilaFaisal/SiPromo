@@ -10,7 +10,7 @@ async function getNotifikasi(req, res, next) {
       `SELECT n.*, a.nama AS aset_nama, a.stok, a.threshold_qty
        FROM pesan_notifikasi n
        JOIN aset a ON a.aset_id = n.aset_id
-       WHERE n.is_resolved = false
+       WHERE n.is_resolved = false AND a.is_active = true
        ORDER BY n.created_at DESC`
     );
     res.json(rows);

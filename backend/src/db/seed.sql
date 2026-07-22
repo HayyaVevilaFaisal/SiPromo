@@ -1,5 +1,5 @@
 -- Data contoh (dummy) - Revisi Final - opsional untuk pengujian
--- PENTING: hash password di bawah adalah hash bcrypt ASLI untuk password "password123".
+-- PENTING: hash password di bawah adalah hash bcrypt ASLI untuk password "Admin123!".
 -- (Berbeda dari draf sebelumnya yang memakai teks placeholder dan tidak akan pernah cocok saat login.)
 
 INSERT INTO vendor (vendor_id, nama, alamat, nomor_handphone, email, is_active) VALUES
@@ -41,8 +41,8 @@ INSERT INTO aset (aset_id, dimensi_aset_id, lokasi_penyimpanan_id, nama, harga, 
 (5, 2, 2, 'Buku Catatan Informatika', 20000.00, 45, 15, TRUE);
 
 INSERT INTO pengguna (pengguna_id, email, password, nama_lengkap, status_aktif) VALUES
-(1, 'pic.promosi@if.unpar.ac.id', '$2b$10$dD93jlpYKpbs7FTn6FJfROfDkMxhSW30/6.aocvkuQ4adZskvk/KK', 'PIC Promosi Informatika', TRUE),
-(2, 'kaprodi@if.unpar.ac.id', '$2b$10$dD93jlpYKpbs7FTn6FJfROfDkMxhSW30/6.aocvkuQ4adZskvk/KK', 'Kepala Program Studi Informatika', TRUE);
+(1, 'pic.promosi@if.unpar.ac.id', '$2b$10$8X/zciolpCB2GwDA7HYb8e.eyuyAiOk7hxdsrUIvM4CDijMl/NW8i', 'PIC Promosi Informatika', TRUE),
+(2, 'kaprodi@if.unpar.ac.id', '$2b$10$8X/zciolpCB2GwDA7HYb8e.eyuyAiOk7hxdsrUIvM4CDijMl/NW8i', 'Kepala Program Studi Informatika', TRUE);
 
 INSERT INTO pesan_notifikasi (pesan_notifikasi_id, aset_id, pesan, created_at, is_resolved) VALUES
 (1, 3, 'Stok Tumbler Informatika tersisa 8 dan telah mencapai batas minimum.', '2025-05-20 09:00:00', FALSE),

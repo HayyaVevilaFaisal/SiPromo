@@ -10,4 +10,12 @@ export default defineConfig({
       '/uploads': 'http://localhost:5001',
     },
   },
+  test: {
+    environment: 'jsdom',
+    environmentOptions: {
+      jsdom: { url: 'http://localhost/' }, // localStorage butuh origin non-opaque agar tersedia
+    },
+    globals: true,
+    setupFiles: ['./tests/setup.js'],
+  },
 });

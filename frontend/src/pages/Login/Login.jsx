@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { MegaphoneIcon } from '../../components/common/icons';
+import { GiftIcon } from '../../components/common/icons';
 
 const REMEMBERED_EMAIL_KEY = 'sipromo:rememberedEmail';
 
@@ -60,7 +60,7 @@ export default function Login() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
           >
-            <MegaphoneIcon size={24} />
+            <GiftIcon size={24} />
           </div>
           <div>
             <div style={{ fontSize: 18, fontWeight: 700, color: '#111' }}>SiPromo</div>

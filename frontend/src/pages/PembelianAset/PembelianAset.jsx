@@ -47,7 +47,7 @@ function parseDateInputValue(value) {
   return new Date(yyyy, mm - 1, dd);
 }
 
-function findTahunAjaran(tanggal, tahunAjaranList) {
+export function findTahunAjaran(tanggal, tahunAjaranList) {
   const target = parseDateInputValue(tanggal);
   if (!target) return null;
   return tahunAjaranList.find((ta) => {
@@ -57,7 +57,7 @@ function findTahunAjaran(tanggal, tahunAjaranList) {
   }) || null;
 }
 
-function statusBadgeStyle(status) {
+export function statusBadgeStyle(status) {
   if (status === 'Lunas') return { background: '#dcfce7', color: '#16a34a' };
   if (status === 'DP') return { background: '#fef3c7', color: '#d97706' };
   if (status === 'Belum Bayar') return { background: '#fee2e2', color: '#dc2626' };

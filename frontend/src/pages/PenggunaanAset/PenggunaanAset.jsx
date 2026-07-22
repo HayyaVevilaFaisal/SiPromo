@@ -5,7 +5,7 @@ import PageHeader from '../../components/common/PageHeader';
 import IconButton from '../../components/common/IconButton';
 import { Th, Td } from '../../components/common/DataTable';
 import {
-  SearchIcon, PlusIcon, EditIcon, TrashIcon, CalendarIcon,
+  SearchIcon, PlusIcon, EditIcon, TrashIcon, FlagIcon,
 } from '../../components/common/icons';
 import PenggunaanAsetForm from './PenggunaanAsetForm';
 
@@ -283,7 +283,7 @@ export default function PenggunaanAset() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   }}
                   >
-                    <CalendarIcon />
+                    <FlagIcon />
                   </div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 16 }}>{row.nama}</div>

@@ -1,111 +1,357 @@
-const pool = require('../config/db');
+// Mengambil service Tahun Ajaran.
+const tahunAjaranService =
+  require('../services/tahunAjaranService');
+const { validateSemesterDates } = require('../utils/semesterDates');
 
-// FR-07, UC-04 - Kelola Data Tahun Ajaran
-// "tahun" seharusnya diturunkan di frontend dari tanggal_mulai + semester (lihat
-// frontend/src/pages/TahunAjaran/deriveTahun.js); validasi di sini cuma jaring pengaman
-// kalau ada klien lain yang mengirim nilai tidak konsisten langsung ke API.
-function deriveTahun(tanggalMulai, tanggalSelesai, semester) {
-  const year = new Date(tanggalMulai).getFullYear();
-  if (Number.isNaN(year)) return null;
-  if (tanggalSelesai && tanggalMulai === tanggalSelesai) return `${year}/${year}`;
-  return semester === 'Ganjil' ? `${year}/${year + 1}` : `${year - 1}/${year}`;
-}
-async function getAllTahunAjaran(req, res, next) {
-  try {
-    const { search, status } = req.query;
-    const conditions = [];
-    const values = [];
-    let idx = 1;
-    if (search) { conditions.push(`ta.tahun ILIKE $${idx++}`); values.push(`%${search}%`); }
-    if (status === 'aktif') conditions.push('ta.is_active = true');
-    else if (status === 'arsip') conditions.push('ta.is_active = false');
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const { rows } = await pool.query(
-      `SELECT ta.*, COALESCE(k.jumlah, 0) AS jumlah_kegiatan
-       FROM tahun_ajaran ta
-       LEFT JOIN (
-         SELECT tahun_ajaran_id, COUNT(*) AS jumlah
-         FROM kegiatan
-         WHERE is_active = true
-         GROUP BY tahun_ajaran_id
-       ) k ON k.tahun_ajaran_id = ta.tahun_ajaran_id
-       ${where}
-       ORDER BY ta.tanggal_mulai DESC`,
-      values
-    );
-    res.json(rows);
-  } catch (err) { next(err); }
+
+// FR-07, UC-04 - Kelola Data Tahun Ajaran.
+//
+// Kode lama: tahun diturunkan dari tanggal dan semester.
+/*
+// Nilai "tahun" sebenarnya diturunkan di frontend
+// berdasarkan tanggal_mulai dan semester.
+//
+// Validasi di backend tetap dipertahankan sebagai
+// pengaman jika terdapat request lain langsung ke API.
+
+
+// Menentukan nilai Tahun Ajaran berdasarkan tanggal mulai,
+// tanggal selesai, dan semester.
+function deriveTahun(
+  tanggalMulai,
+  tanggalSelesai,
+  semester
+) {
+
+  // Mengambil tahun dari tanggal mulai.
+  const year =
+    new Date(tanggalMulai).getFullYear();
+
+
+  // Jika tanggal mulai tidak valid.
+  if (Number.isNaN(year)) {
+
+    return null;
+  }
+
+
+  // Semester Ganjil dimulai pada tahun pertama
+  // dan berakhir pada tahun berikutnya.
+  if (semester === 'Ganjil') {
+
+    return `${year}/${year + 1}`;
+  }
+
+
+  // Semester Genap berada pada bagian kedua
+  // dari Tahun Ajaran sebelumnya.
+  return `${year - 1}/${year}`;
 }
 
-async function createTahunAjaran(req, res, next) {
+
+*/
+
+// Tahun ajaran memakai tahun awal yang dipilih pengguna dan tahun berikutnya.
+function validateTahun(tahun) {
+  if (typeof tahun !== 'string' || !/^[1-9][0-9]{3}\/[1-9][0-9]{3}$/.test(tahun)) return false;
+  const [awal, akhir] = tahun.split('/').map(Number);
+  return akhir === awal + 1;
+}
+
+// Mengambil seluruh data Tahun Ajaran.
+async function getAllTahunAjaran(
+  req,
+  res,
+  next
+) {
+
   try {
-    const { tahun, semester, tanggal_mulai, tanggal_selesai } = req.body;
-    if (!tahun || !semester || !tanggal_mulai || !tanggal_selesai) {
-      return res.status(400).json({ message: 'Data tahun ajaran belum lengkap' });
-    }
-    if (new Date(tanggal_selesai) < new Date(tanggal_mulai)) {
-      return res.status(400).json({ message: 'Tanggal selesai harus setelah tanggal mulai' });
-    }
-    const expectedTahun = deriveTahun(tanggal_mulai, tanggal_selesai, semester);
-    if (expectedTahun && tahun !== expectedTahun) {
-      return res.status(400).json({ message: `Tahun ajaran tidak konsisten dengan tanggal mulai & semester (seharusnya "${expectedTahun}")` });
-    }
-    const { rows } = await pool.query(
-      'INSERT INTO tahun_ajaran (tahun, semester, tanggal_mulai, tanggal_selesai) VALUES ($1,$2,$3,$4) RETURNING *',
-      [tahun, semester, tanggal_mulai, tanggal_selesai]
-    );
-    res.status(201).json(rows[0]);
+
+    // Mengambil parameter pencarian dan status.
+    const {
+      search,
+      // status,
+    } = req.query;
+
+
+    // Meminta service mengambil data Tahun Ajaran.
+    const tahunAjaran =
+      await tahunAjaranService.getAllTahunAjaran(
+        // search,
+        // status
+        search
+      );
+
+
+    // Mengirim hasil kepada frontend.
+    res.json(tahunAjaran);
+
   } catch (err) {
-    if (err.code === '23505') {
-      return res.status(400).json({ message: 'Tahun ajaran dengan tahun & semester ini sudah ada' });
-    }
+
+    // Meneruskan error ke middleware error handler.
     next(err);
   }
 }
 
-async function updateTahunAjaran(req, res, next) {
+
+// Menambahkan Tahun Ajaran baru.
+async function createTahunAjaran(
+  req,
+  res,
+  next
+) {
+
   try {
-    const { id } = req.params;
-    const { tahun, semester, tanggal_mulai, tanggal_selesai } = req.body;
-    if (new Date(tanggal_selesai) < new Date(tanggal_mulai)) {
-      return res.status(400).json({ message: 'Tanggal selesai harus setelah tanggal mulai' });
+
+    const {
+      tahun,
+      semester,
+      tanggal_mulai,
+      tanggal_selesai,
+    } = req.body;
+
+
+    // Validasi request tetap dilakukan di controller.
+    if (
+      !tahun ||
+      !semester ||
+      !tanggal_mulai ||
+      !tanggal_selesai
+    ) {
+
+      return res.status(400).json({
+        message:
+          'Data tahun ajaran belum lengkap',
+      });
     }
-    const expectedTahun = deriveTahun(tanggal_mulai, tanggal_selesai, semester);
-    if (expectedTahun && tahun !== expectedTahun) {
-      return res.status(400).json({ message: `Tahun ajaran tidak konsisten dengan tanggal mulai & semester (seharusnya "${expectedTahun}")` });
+
+
+    const dateError = validateSemesterDates(tanggal_mulai, tanggal_selesai, typeof tahun === 'string' ? tahun.split('/')[0] : undefined);
+    if (dateError) {
+
+      return res.status(400).json({
+        message:
+          dateError,
+      });
     }
-    const { rows } = await pool.query(
-      'UPDATE tahun_ajaran SET tahun=$1, semester=$2, tanggal_mulai=$3, tanggal_selesai=$4 WHERE tahun_ajaran_id=$5 RETURNING *',
-      [tahun, semester, tanggal_mulai, tanggal_selesai, id]
-    );
-    if (!rows[0]) return res.status(404).json({ message: 'Tahun ajaran tidak ditemukan' });
-    res.json(rows[0]);
+
+
+    /* Kode validasi lama berdasarkan tanggal dan semester:
+    const expectedTahun =
+      deriveTahun(
+        tanggal_mulai,
+        tanggal_selesai,
+        semester
+      );
+
+
+    if (
+      expectedTahun &&
+      tahun !== expectedTahun
+    ) {
+
+      return res.status(400).json({
+        message:
+          `Tahun ajaran tidak konsisten dengan tanggal mulai & semester (seharusnya "${expectedTahun}")`,
+      });
+    }
+
+
+    */
+    if (!validateTahun(tahun)) {
+      return res.status(400).json({
+        message: 'Tahun ajaran harus berupa tahun awal/tahun berikutnya, contoh: 2026/2027.',
+      });
+    }
+
+    // Service menentukan apakah:
+    // - membuat data baru, atau
+    // - mengaktifkan kembali data lama.
+    const tahunAjaran =
+      await tahunAjaranService.createTahunAjaran(
+        tahun,
+        semester,
+        tanggal_mulai,
+        tanggal_selesai
+      );
+
+
+    res.status(201).json(tahunAjaran);
+
   } catch (err) {
-    if (err.code === '23505') {
-      return res.status(400).json({ message: 'Tahun ajaran dengan tahun & semester ini sudah ada' });
+
+    // Jika service memberikan statusCode tertentu.
+    if (err.statusCode) {
+
+      return res.status(
+        err.statusCode
+      ).json({
+        message: err.message,
+      });
     }
+
+
     next(err);
   }
 }
 
-async function archiveTahunAjaran(req, res, next) {
+
+// Mengubah data Tahun Ajaran.
+async function updateTahunAjaran(
+  req,
+  res,
+  next
+) {
+
   try {
+
+    // Mengambil ID Tahun Ajaran.
     const { id } = req.params;
-    const { rows } = await pool.query('UPDATE tahun_ajaran SET is_active=false WHERE tahun_ajaran_id=$1 RETURNING *', [id]);
-    if (!rows[0]) return res.status(404).json({ message: 'Tahun ajaran tidak ditemukan' });
-    res.json({ message: 'Tahun ajaran berhasil diarsipkan', data: rows[0] });
-  } catch (err) { next(err); }
+
+
+    // Mengambil data perubahan.
+    const {
+      tahun,
+      semester,
+      tanggal_mulai,
+      tanggal_selesai,
+    } = req.body;
+
+
+    // Memastikan tanggal selesai tidak lebih kecil
+    // dari tanggal mulai.
+    const dateError = validateSemesterDates(tanggal_mulai, tanggal_selesai, typeof tahun === 'string' ? tahun.split('/')[0] : undefined);
+    if (dateError) {
+
+      return res.status(400).json({
+        message:
+          dateError,
+      });
+    }
+
+
+    /* Kode validasi lama berdasarkan tanggal dan semester:
+    // Menghitung nilai tahun yang seharusnya.
+    const expectedTahun =
+      deriveTahun(
+        tanggal_mulai,
+        tanggal_selesai,
+        semester
+      );
+
+
+    // Memastikan nilai tahun konsisten.
+    if (
+      expectedTahun &&
+      tahun !== expectedTahun
+    ) {
+
+      return res.status(400).json({
+        message:
+          `Tahun ajaran tidak konsisten dengan tanggal mulai & semester (seharusnya "${expectedTahun}")`,
+      });
+    }
+
+
+    */
+    if (!validateTahun(tahun)) {
+      return res.status(400).json({
+        message: 'Tahun ajaran harus berupa tahun awal/tahun berikutnya, contoh: 2026/2027.',
+      });
+    }
+
+    // Meminta service memperbarui Tahun Ajaran.
+    const tahunAjaran =
+      await tahunAjaranService.updateTahunAjaran(
+        id,
+        tahun,
+        semester,
+        tanggal_mulai,
+        tanggal_selesai
+      );
+
+
+    // Jika data tidak ditemukan atau sudah dihapus.
+    if (!tahunAjaran) {
+
+      return res.status(404).json({
+        message:
+          'Tahun ajaran tidak ditemukan',
+      });
+    }
+
+
+    // Mengirim hasil perubahan.
+    res.json(tahunAjaran);
+
+  } catch (err) {
+
+    // Menangani duplikasi Tahun Ajaran.
+    if (err.code === '23505') {
+
+      return res.status(400).json({
+        message:
+          'Tahun ajaran dengan tahun & semester ini sudah ada',
+      });
+    }
+
+
+    // Meneruskan error lainnya.
+    next(err);
+  }
 }
 
-async function restoreTahunAjaran(req, res, next) {
-  try {
-    const { id } = req.params;
-    const { rows } = await pool.query('UPDATE tahun_ajaran SET is_active=true WHERE tahun_ajaran_id=$1 RETURNING *', [id]);
-    if (!rows[0]) return res.status(404).json({ message: 'Tahun ajaran tidak ditemukan' });
-    res.json({ message: 'Tahun ajaran berhasil dipulihkan', data: rows[0] });
-  } catch (err) { next(err); }
-}
 
+// Menghapus Tahun Ajaran.
+// async function deleteTahunAjaran(
+//   req,
+//   res,
+//   next
+// ) {
+//
+//   try {
+//
+//     // Mengambil ID Tahun Ajaran.
+//     const { id } = req.params;
+//
+//
+//     // Meminta service melakukan soft delete.
+//     const tahunAjaran =
+//       await tahunAjaranService.deleteTahunAjaran(
+//         id
+//       );
+//
+//
+//     // Jika Tahun Ajaran tidak ditemukan
+//     // atau sudah pernah dihapus.
+//     if (!tahunAjaran) {
+//
+//       return res.status(404).json({
+//         message:
+//           'Tahun ajaran tidak ditemukan',
+//       });
+//     }
+//
+//
+//     // Mengirim informasi bahwa data berhasil dihapus.
+//     res.json({
+//       message:
+//         'Tahun ajaran berhasil dihapus',
+//       data: tahunAjaran,
+//     });
+//
+//   } catch (err) {
+//
+//     // Meneruskan error.
+//     next(err);
+//   }
+// }
+
+
+// Mengekspor seluruh controller.
 module.exports = {
-  getAllTahunAjaran, createTahunAjaran, updateTahunAjaran, archiveTahunAjaran, restoreTahunAjaran,
+  getAllTahunAjaran,
+  createTahunAjaran,
+  updateTahunAjaran,
+  // deleteTahunAjaran,
 };

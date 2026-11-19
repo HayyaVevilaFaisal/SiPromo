@@ -3,7 +3,7 @@ import axiosClient from '../../api/axiosClient';
 import PageHeader from '../../components/common/PageHeader';
 import { Th, Td } from '../../components/common/DataTable';
 import {
-  CalendarIcon, CartIcon, BoxIcon, WalletIcon, PackageIcon, DownloadIcon,
+  CalendarIcon, CartIcon, BoxIcon, WalletIcon, PackageIcon, DownloadIcon, StokOpnameIcon,
 } from '../../components/common/icons';
 
 function formatRupiah(value) {
@@ -30,7 +30,8 @@ export default function Laporan() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    axiosClient.get('/tahun-ajaran', { params: { status: 'aktif' } }).then((res) => {
+//     axiosClient.get('/tahun-ajaran', { params: { status: 'aktif' } }).then((res) => {
+    axiosClient.get('/tahun-ajaran').then((res) => {
       setTahunAjaranList(res.data);
       if (res.data.length > 0) setTahunAjaranId(String(res.data[0].tahun_ajaran_id));
       else setLoading(false);
@@ -83,6 +84,8 @@ export default function Laporan() {
   const ringkasan = laporan?.ringkasan;
   const rincianPembelian = laporan?.rincian_pembelian ?? [];
   const rincianPenggunaan = laporan?.rincian_penggunaan ?? [];
+  const rincianOpname = laporan?.rincian_stok_opname ?? [];
+  const kelompokOpname = laporan?.kelompok_stok_opname ?? [];
   const rekapStok = laporan?.rekap_stok ?? [];
 
   return (
@@ -114,7 +117,7 @@ export default function Laporan() {
             onChange={(e) => setTahunAjaranId(e.target.value)}
             style={{
               background: 'transparent', color: '#155dfc', border: 'none', outline: 'none',
-              fontSize: 14, fontWeight: 700, padding: 0,
+              fontSize: 14, fontWeight: 500, padding: 0,
             }}
           >
             {tahunAjaranList.length === 0 && <option value="">Belum ada tahun ajaran</option>}
@@ -198,6 +201,21 @@ export default function Laporan() {
               <div style={{ fontSize: 24, fontWeight: 700, color: '#111827', margin: '4px 0' }}>{ringkasan.jumlah_kegiatan}</div>
               <div style={{ fontSize: 12, color: '#6b7280' }}>Di tahun ajaran {ta.tahun}</div>
             </div>
+            <div style={{ flex: 1, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 20 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 10, background: '#eff6ff', color: '#155dfc',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14,
+              }}>
+                <StokOpnameIcon />
+              </div>
+              <div style={{ fontSize: 13, color: '#6b7280' }}>Stok Opname</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#111827', margin: '4px 0' }}>
+                {ringkasan.jumlah_stok_opname} pemeriksaan
+              </div>
+              <div style={{ fontSize: 12, color: '#6b7280' }}>
+                {ringkasan.jumlah_detail_berselisih} baris aset berselisih
+              </div>
+            </div>
           </div>
 
           <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: 24 }}>
@@ -237,7 +255,7 @@ export default function Laporan() {
                       <tr style={{ background: '#f9fafb' }}>
                         <Th>Vendor</Th>
                         <Th>Aset</Th>
-                        <Th>Dimensi</Th>
+                        <Th>Level</Th>
                         <Th>Qty Masuk</Th>
                         <Th>Harga Satuan</Th>
                         <Th>Harga Total</Th>
@@ -262,9 +280,9 @@ export default function Laporan() {
                           </Td>
                           <Td>{row.aset_nama}</Td>
                           <Td>
-                            {row.dimensi_nama ? (
+                            {row.level_nama ? (
                               <span style={{ background: '#e2e5ea', color: '#374151', padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500 }}>
-                                {row.dimensi_nama}
+                                {row.level_nama}
                               </span>
                             ) : '-'}
                           </Td>
@@ -324,7 +342,7 @@ export default function Laporan() {
                       <tr style={{ background: '#f9fafb' }}>
                         <Th>Kegiatan</Th>
                         <Th>Aset</Th>
-                        <Th>Dimensi Aset</Th>
+                        <Th>Level Aset</Th>
                         <Th>Qty Keluar</Th>
                         <Th>Vendor</Th>
                       </tr>
@@ -338,9 +356,9 @@ export default function Laporan() {
                           </Td>
                           <Td>{row.aset_nama}</Td>
                           <Td>
-                            {row.dimensi_nama ? (
+                            {row.level_nama ? (
                               <span style={{ background: '#e2e5ea', color: '#374151', padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500 }}>
-                                {row.dimensi_nama}
+                                {row.level_nama}
                               </span>
                             ) : '-'}
                           </Td>
@@ -357,6 +375,91 @@ export default function Laporan() {
                 >
                   <span style={{ color: '#374151' }}>Subtotal Unit Keluar :&nbsp;</span>
                   <span style={{ fontWeight: 700, color: '#d97706' }}>{ringkasan.total_qty_keluar} unit</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: 24 }}>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+              padding: 20, borderBottom: '1px solid #e2e8f0',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: 10, background: '#eff6ff', color: '#155dfc',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <StokOpnameIcon />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>Rincian Stok Opname</div>
+                  <div style={{ fontSize: 13, color: '#6b7280', marginTop: 2 }}>
+                    {ringkasan.jumlah_stok_opname} pemeriksaan pada {ta.semester} {ta.tahun}
+                  </div>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 12, color: '#6b7280' }}>Aset Berselisih</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#155dfc' }}>
+                  {ringkasan.jumlah_detail_berselisih} baris
+                </div>
+              </div>
+            </div>
+
+            {rincianOpname.length === 0 ? (
+              <div style={{ padding: 24, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>
+                Belum ada pencatatan stok opname pada tahun ajaran ini.
+                <div style={{ marginTop: 12 }}>Total unit hilang: 0 unit · Total unit berlebih: 0 unit</div>
+              </div>
+            ) : (
+              <>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+                    <thead>
+                      <tr style={{ background: '#f9fafb' }}>
+                        <Th>Pencatatan</Th>
+                        <Th>Aset</Th>
+                        <Th>Stok Sistem</Th>
+                        <Th>Stok Fisik</Th>
+                        <Th>Selisih</Th>
+                        <Th>Unit Hilang</Th>
+                        <Th>Unit Berlebih</Th>
+                      </tr>
+                    </thead>
+                    {kelompokOpname.map((group) => (
+                      <tbody key={group.stok_opname_id}>
+                        {group.rincian.map((row, index) => {
+                          const selisih = Number(row.selisih);
+                          return (
+                            <tr key={row.aset_id}>
+                              {index === 0 && (
+                                <Td rowSpan={group.rincian.length}>
+                                  <div style={{ fontWeight: 600 }}>Pencatatan {formatTanggal(`${group.tanggal}T00:00:00`)}</div>
+                                  <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 2, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>Catatan: {group.catatan || '-'}</div>
+                                </Td>
+                              )}
+                              <Td>{row.aset_nama}</Td>
+                              <Td>{row.stok_sistem}</Td>
+                              <Td>{row.stok_fisik}</Td>
+                              <Td><span style={{ color: '#155dfc', fontWeight: 700 }}>{selisih > 0 ? '+' : ''}{selisih}</span></Td>
+                              <Td>{row.aset_hilang}</Td>
+                              <Td>{row.aset_berlebih}</Td>
+                            </tr>
+                          );
+                        })}
+                        <tr style={{ background: '#f9fafb', borderTop: '1px solid #e2e8f0', fontSize: 13 }}>
+                          <td colSpan={5} style={{ padding: '12px 16px', color: '#374151' }}>Subtotal pencatatan</td>
+                          <td style={{ padding: '12px 16px', color: '#155dfc', fontWeight: 700 }}>{group.total_aset_hilang} unit</td>
+                          <td style={{ padding: '12px 16px', color: '#155dfc', fontWeight: 700 }}>{group.total_aset_berlebih} unit</td>
+                        </tr>
+                      </tbody>
+                    ))}
+                  </table>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: '8px 24px', background: '#eff6ff', padding: '12px 20px', fontSize: 13, color: '#374151' }}>
+                  <span>Unit hilang: <span style={{ fontWeight: 700, color: '#155dfc' }}>{ringkasan.total_aset_hilang} unit</span></span>
+                  <span>Unit berlebih: <span style={{ fontWeight: 700, color: '#155dfc' }}>{ringkasan.total_aset_berlebih} unit</span></span>
                 </div>
               </>
             )}
@@ -380,7 +483,7 @@ export default function Laporan() {
                     </span>
                   </div>
                   <div style={{ fontSize: 13, color: '#6b7280', marginTop: 2 }}>
-                    Kondisi stok terkini untuk aset terkait tahun ajaran ini
+                    Stok seluruh aset aktif saat ini, bukan saldo akhir historis semester
                   </div>
                 </div>
               </div>
@@ -408,19 +511,11 @@ export default function Laporan() {
                               <Td>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                   <span style={{ fontWeight: 600 }}>{row.nama}</span>
-                                  {row.ada_perubahan && (
-                                    <span
-                                      title="Ada transaksi pembelian/penggunaan pada tahun ajaran ini"
-                                      style={{ background: '#eff6ff', color: '#155dfc', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600 }}
-                                    >
-                                      Ada Transaksi
-                                    </span>
-                                  )}
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                                  {row.dimensi_nama && (
+                                  {row.level_nama && (
                                     <span style={{ background: '#e2e5ea', color: '#374151', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 500 }}>
-                                      {row.dimensi_nama}
+                                      {row.level_nama}
                                     </span>
                                   )}
                                   <span style={{ fontSize: 12, color: '#9ca3af' }}>{formatRupiah(row.harga)}</span>

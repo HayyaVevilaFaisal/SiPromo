@@ -1,162 +1,39 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
+
 import { useAuth } from '../../context/AuthContext';
 import { GiftIcon } from '../../components/common/icons';
 
-const REMEMBERED_EMAIL_KEY = 'sipromo:rememberedEmail';
-
-// FR-01, NFR-11 - Halaman Login
 export default function Login() {
-  const [email, setEmail] = useState(() => localStorage.getItem(REMEMBERED_EMAIL_KEY) || '');
-  const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(() => Boolean(localStorage.getItem(REMEMBERED_EMAIL_KEY)));
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
-  const navigate = useNavigate();
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      await login(email, password);
-      if (rememberMe) {
-        localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
-      } else {
-        localStorage.removeItem(REMEMBERED_EMAIL_KEY);
-      }
-      navigate('/');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Login gagal');
-      setPassword('');
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  const { user, loading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const googleStatus = searchParams.get('google');
+  const googleError = googleStatus === 'unavailable'
+    ? 'Login dengan Google belum tersedia.'
+    : googleStatus === 'failed'
+      ? 'Login dengan Google gagal. Gunakan akun Gmail atau Google Workspace yang terdaftar dan aktif di SiPromo.'
+      : '';
+  if (user) return <Navigate to="/" replace />;
   return (
-    <div style={{
-      display: 'flex', justifyContent: 'center', alignItems: 'center',
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #1447e6 0%, #3b82f6 50%, #2563eb 100%)',
-      padding: 16,
-    }}
-    >
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          background: '#fff',
-          padding: '32px 32px 40px',
-          borderRadius: 20,
-          width: 380,
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.25)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
-          <div style={{
-            width: 48, height: 48, borderRadius: 12, background: '#155dfc', color: '#fff', flexShrink: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-          >
-            <GiftIcon size={24} />
-          </div>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#111' }}>SiPromo</div>
-            <div style={{ fontSize: 12, color: '#6b7280' }}>Informatika UNPAR</div>
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 20, minHeight: '100vh', background: 'linear-gradient(135deg, #1447e6, #3b82f6, #2563eb)', padding: 16 }}>
+      <main style={{ background: '#fff', padding: 32, borderRadius: 20, width: 400, maxWidth: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.25)', textAlign: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28, textAlign: 'left' }}>
+          <div style={{ padding: 12, borderRadius: 12, background: '#155dfc', color: '#fff' }}><GiftIcon size={24} /></div>
+          <div><strong>SiPromo</strong><div style={{ fontSize: 12, color: '#6b7280' }}>Informatika UNPAR</div></div>
         </div>
+        <h1 style={{ fontSize: 22 }}>Selamat Datang!</h1>
+        <p>Portal Pengelolaan Aset Promosi Informatika UNPAR</p>
+        <p style={{ fontSize: 13, color: '#6b7280' }}>Masuk dengan akun Email UNPAR Anda</p>
+        {googleError && <p role="alert" style={{ color: '#b91c1c' }}>{googleError}</p>}
 
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 8px' }}>Selamat Datang!</h1>
-        <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24, lineHeight: 1.5 }}>
-          Masuk untuk mengelola aset promosi Program Studi Informatika UNPAR
-        </p>
-
-        {error && <p style={{ color: '#c0392b', fontSize: 13, marginBottom: 12 }}>{error}</p>}
-
-        <label>Email</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="SiPromo Account"
-          style={{ width: '100%', marginBottom: 16, padding: '12px 14px', fontSize: 14, borderRadius: 10, border: '1px solid #d1d5db' }}
-          required
-        />
-        <label>Password</label>
-        <div style={{ position: 'relative', marginBottom: 16 }}>
-          <input
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            style={{ width: '100%', padding: '12px 44px 12px 14px', fontSize: 14, borderRadius: 10, border: '1px solid #d1d5db' }}
-            required
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword((prev) => !prev)}
-            aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
-            style={{
-              position: 'absolute',
-              right: 4,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              background: 'transparent',
-              padding: 8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#6b7280',
-            }}
-          >
-            {showPassword ? (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.6 18.6 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a18.6 18.6 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                <line x1="1" y1="1" x2="23" y2="23" />
-              </svg>
-            ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            )}
-          </button>
-        </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24, cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={rememberMe}
-            onChange={(e) => setRememberMe(e.target.checked)}
-            style={{ width: 16, height: 16, padding: 0 }}
-          />
-          <span style={{ fontSize: 13, fontWeight: 400, color: '#374151' }}>Ingat saya</span>
-        </label>
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            padding: '14px',
-            fontSize: 15,
-            fontWeight: 600,
-            borderRadius: 10,
-            background: '#155dfc',
-          }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-            <polyline points="10 17 15 12 10 7" />
-            <line x1="15" y1="12" x2="3" y2="12" />
-          </svg>
-          {loading ? 'Memproses...' : 'Masuk'}
-        </button>
-      </form>
+        {loading ? <p role="status">Memeriksa sesi...</p> : (
+          <a href="/api/auth/google" style={{ display: 'block', textAlign: 'center', marginTop: 12, padding: 12, border: '1px solid #cbd5e1', borderRadius: 10, color: '#1e293b', textDecoration: 'none' }}>
+            Masuk dengan Google
+          </a>
+        )}
+      </main>
+      <footer style={{ fontSize: 13, color: '#fff', textAlign: 'center' }}>
+        © 2026 Informatika Universitas Katolik Parahyangan
+      </footer>
     </div>
   );
 }

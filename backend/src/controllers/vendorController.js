@@ -1,70 +1,183 @@
-const pool = require('../config/db');
+const vendorService = require('../services/vendorService');
 
-// FR-05, UC-03 - Kelola Data Vendor
-// Catatan revisi final: kolom "catatan" berganti nama menjadi "alamat" dan sekarang WAJIB diisi
-// (bisa berupa alamat fisik atau tautan toko online, sesuai constraint ck_vendor_alamat_tidak_kosong).
 
 async function getAllVendor(req, res, next) {
   try {
-    const { search, status } = req.query;
-    const conditions = [];
-    const values = [];
-    let idx = 1;
-    if (search) { conditions.push(`nama ILIKE $${idx++}`); values.push(`%${search}%`); }
-    if (status === 'aktif') conditions.push('is_active = true');
-    else if (status === 'arsip') conditions.push('is_active = false');
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const { rows } = await pool.query(`SELECT * FROM vendor ${where} ORDER BY nama ASC`, values);
-    res.json(rows);
-  } catch (err) { next(err); }
+
+    // Mengambil parameter pencarian dan status dari URL.
+    const {
+      search,
+      // status,
+    } = req.query;
+
+
+    // Meminta service mengambil vendor
+    // berdasarkan pencarian dan status.
+    const vendors =
+      await vendorService.getAllVendor(
+        // search,
+        // status
+        search
+      );
+
+
+    // Mengirim hasil kepada frontend.
+    res.json(vendors);
+
+  } catch (err) {
+
+    // Meneruskan error ke error handler.
+    next(err);
+  }
 }
 
+
+// Menambahkan vendor baru.
 async function createVendor(req, res, next) {
+
   try {
-    const { nama, alamat, nomor_handphone, email } = req.body;
+
+    // Mengambil data vendor dari request body.
+    const {
+      nama,
+      alamat,
+      nomor_handphone,
+      email,
+    } = req.body;
+
+
+    // Validasi data wajib.
     if (!nama || !alamat || !alamat.trim()) {
-      return res.status(400).json({ message: 'Nama dan alamat/tautan toko vendor wajib diisi' });
+
+      return res.status(400).json({
+        message:
+          'Nama dan alamat/tautan toko vendor wajib diisi',
+      });
     }
-    const { rows } = await pool.query(
-      'INSERT INTO vendor (nama, alamat, nomor_handphone, email) VALUES ($1,$2,$3,$4) RETURNING *',
-      [nama, alamat, nomor_handphone, email]
-    );
-    res.status(201).json(rows[0]);
-  } catch (err) { next(err); }
+
+
+    // Meminta service membuat vendor.
+    const vendor =
+      await vendorService.createVendor(
+        nama,
+        alamat,
+        nomor_handphone,
+        email
+      );
+
+
+    // Mengirim vendor yang berhasil dibuat.
+    res.status(201).json(vendor);
+
+  } catch (err) {
+
+    // Meneruskan error.
+    next(err);
+  }
 }
 
+
+// Mengubah data vendor.
 async function updateVendor(req, res, next) {
+
   try {
+
+    // Mengambil ID vendor.
     const { id } = req.params;
-    const { nama, alamat, nomor_handphone, email } = req.body;
+
+
+    // Mengambil data vendor dari request body.
+    const {
+      nama,
+      alamat,
+      nomor_handphone,
+      email,
+    } = req.body;
+
+
+    // Validasi alamat vendor.
     if (!alamat || !alamat.trim()) {
-      return res.status(400).json({ message: 'Alamat/tautan toko vendor wajib diisi' });
+
+      return res.status(400).json({
+        message:
+          'Alamat/tautan toko vendor wajib diisi',
+      });
     }
-    const { rows } = await pool.query(
-      'UPDATE vendor SET nama=$1, alamat=$2, nomor_handphone=$3, email=$4 WHERE vendor_id=$5 RETURNING *',
-      [nama, alamat, nomor_handphone, email, id]
-    );
-    if (!rows[0]) return res.status(404).json({ message: 'Vendor tidak ditemukan' });
-    res.json(rows[0]);
-  } catch (err) { next(err); }
+
+
+    // Meminta service memperbarui vendor.
+    const vendor =
+      await vendorService.updateVendor(
+        id,
+        nama,
+        alamat,
+        nomor_handphone,
+        email
+      );
+
+
+    // Jika vendor tidak ditemukan atau sudah tidak aktif.
+    if (!vendor) {
+
+      return res.status(404).json({
+        message: 'Vendor tidak ditemukan',
+      });
+    }
+
+
+    // Mengirim vendor yang berhasil diperbarui.
+    res.json(vendor);
+
+  } catch (err) {
+
+    // Meneruskan error.
+    next(err);
+  }
 }
 
-async function archiveVendor(req, res, next) {
-  try {
-    const { id } = req.params;
-    const { rows } = await pool.query('UPDATE vendor SET is_active=false WHERE vendor_id=$1 RETURNING *', [id]);
-    if (!rows[0]) return res.status(404).json({ message: 'Vendor tidak ditemukan' });
-    res.json({ message: 'Vendor berhasil diarsipkan', data: rows[0] });
-  } catch (err) { next(err); }
-}
 
-async function restoreVendor(req, res, next) {
-  try {
-    const { id } = req.params;
-    const { rows } = await pool.query('UPDATE vendor SET is_active=true WHERE vendor_id=$1 RETURNING *', [id]);
-    if (!rows[0]) return res.status(404).json({ message: 'Vendor tidak ditemukan' });
-    res.json({ message: 'Vendor berhasil dipulihkan', data: rows[0] });
-  } catch (err) { next(err); }
-}
+// Menghapus vendor.
+// async function deleteVendor(req, res, next) {
+//
+//   try {
+//
+//     // Mengambil ID vendor dari URL.
+//     const { id } = req.params;
+//
+//
+//     // Meminta service melakukan soft delete.
+//     const vendor =
+//       await vendorService.deleteVendor(id);
+//
+//
+//     // Jika vendor tidak ditemukan
+//     // atau sudah pernah dihapus sebelumnya.
+//     if (!vendor) {
+//
+//       return res.status(404).json({
+//         message: 'Vendor tidak ditemukan',
+//       });
+//     }
+//
+//
+//     // Mengirim informasi bahwa vendor berhasil dihapus.
+//     res.json({
+//       message: 'Vendor berhasil dihapus',
+//       data: vendor,
+//     });
+//
+//   } catch (err) {
+//
+//     // Meneruskan error.
+//     next(err);
+//   }
+// }
 
-module.exports = { getAllVendor, createVendor, updateVendor, archiveVendor, restoreVendor };
+
+// Mengekspor controller.
+module.exports = {
+  getAllVendor,
+  createVendor,
+  updateVendor,
+  // deleteVendor,
+};

@@ -1,9 +1,11 @@
+import FormIcon from '../../components/common/FormIcon';
 import PageHeader from '../../components/common/PageHeader';
 import IconButton from '../../components/common/IconButton';
-import { PlusIcon, TrashIcon } from '../../components/common/icons';
+import { PlusIcon, TrashIcon, ClipboardCheckIcon } from '../../components/common/icons';
 
 // Form Catat/Ubah Penggunaan Aset dipakai oleh halaman Pencatatan Penggunaan Aset (FR-10, FR-11, FR-12, UC-06)
 export default function PenggunaanAsetForm({
+//   editing, form, setForm, asetList, tahunAjaran, saving, error, onCancel, onSubmit, onCreateAset,
   editing, form, setForm, asetList, tahunAjaran, saving, error, onCancel, onSubmit,
 }) {
   const isEdit = Boolean(editing);
@@ -38,7 +40,7 @@ export default function PenggunaanAsetForm({
         style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 20, borderBottom: '1px solid #e2e8f0' }}>
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#e2e5ea', flexShrink: 0 }} />
+          <FormIcon icon={ClipboardCheckIcon} />
           <div>
             <div style={{ fontWeight: 700, fontSize: 16 }}>
               {isEdit ? 'Ubah Penggunaan Aset' : 'Catat Penggunaan Aset'}
@@ -125,16 +127,32 @@ export default function PenggunaanAsetForm({
               <div style={{ fontSize: 12, fontWeight: 700, color: '#111827', textTransform: 'uppercase', letterSpacing: 0.4 }}>
                 Daftar Aset
               </div>
-              <button
-                type="button"
-                onClick={addRow}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6, background: '#fff', color: '#374151',
-                  border: '1px solid #d1d5db', padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500,
-                }}
-              >
-                <PlusIcon /> Tambah Daftar Aset
-              </button>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {/* Kode tambah aset baru dinonaktifkan; aset baru dibuat melalui pembelian:
+                <button
+                  type="button"
+                  onClick={onCreateAset}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, background: '#eff6ff', color: '#155dfc',
+                    border: '1px solid #bfdbfe', padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500,
+                  }}
+                >
+                  <PlusIcon /> Tambah Aset Baru
+                </button>
+                */}
+                {/* Tombol dan posisi lama, dipertahankan untuk penggunaan kembali:
+<button
+                  type="button"
+                  onClick={addRow}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, background: '#fff', color: '#374151',
+                    border: '1px solid #d1d5db', padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500,
+                  }}
+                >
+                  <PlusIcon /> Tambah Daftar Aset
+                </button>
+                */}
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 40px', gap: 12, marginBottom: 8, padding: '0 2px' }}>
@@ -175,11 +193,22 @@ export default function PenggunaanAsetForm({
                 </div>
               ))
             )}
+
+            <button
+                  type="button"
+                  onClick={addRow}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, background: '#fff', color: '#374151',
+                    border: '1px solid #d1d5db', padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500,
+                  }}
+                >
+                  <PlusIcon /> Tambah Jenis Aset
+                </button>
           </div>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0' }}>
-          <span style={{ fontSize: 13, color: '#6b7280' }}>{dipilih} Aset dipilih</span>
+          <span style={{ fontSize: 13, color: '#6b7280' }}>{dipilih} jenis aset dipilih</span>
           <div style={{ display: 'flex', gap: 10 }}>
             <button type="button" onClick={onCancel} style={{ background: '#e2e8f0', color: '#374151', padding: '10px 20px', borderRadius: 10 }}>
               Batal

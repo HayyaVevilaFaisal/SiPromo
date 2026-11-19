@@ -1,7 +1,9 @@
+import FormIcon from '../../components/common/FormIcon';
+import { VendorIcon } from '../../components/common/icons';
 import PageHeader from '../../components/common/PageHeader';
 
 // Form Tambah/Ubah Vendor dipakai oleh halaman Kelola Data Vendor (FR-05, UC-03)
-export default function VendorForm({ editing, form, setForm, saving, onCancel, onSubmit }) {
+export default function VendorForm({ editing, form, setForm, saving, error, onCancel, onSubmit }) {
   const isEdit = Boolean(editing);
 
   function set(field, value) {
@@ -17,7 +19,7 @@ export default function VendorForm({ editing, form, setForm, saving, onCancel, o
         style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 20, borderBottom: '1px solid #e2e8f0' }}>
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#e2e5ea', flexShrink: 0 }} />
+          <FormIcon icon={VendorIcon} />
           <div>
             <div style={{ fontWeight: 700, fontSize: 16 }}>
               {isEdit ? 'Ubah Vendor' : 'Tambah Vendor Baru'}
@@ -31,6 +33,14 @@ export default function VendorForm({ editing, form, setForm, saving, onCancel, o
         </div>
 
         <div style={{ padding: 24 }}>
+          {error && (
+            <p style={{
+              background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca',
+              borderRadius: 10, padding: '10px 14px', fontSize: 13, marginBottom: 16,
+            }}>
+              {error}
+            </p>
+          )}
           <div style={{
             background: '#eff6ff', border: '1px solid #dbeafe', borderRadius: 14, padding: 20,
           }}

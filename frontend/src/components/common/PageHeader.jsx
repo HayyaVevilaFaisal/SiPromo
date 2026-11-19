@@ -3,9 +3,11 @@ import axiosClient from '../../api/axiosClient';
 import NotificationModal from '../layout/NotificationModal';
 
 // Header judul + subjudul + ikon notifikasi, dipakai seragam di setiap halaman kelola data (FR-09, UC-05)
-export default function PageHeader({ title, subtitle }) {
+export default function PageHeader({ title, subtitle, notificationsOpen, onNotificationsOpenChange }) {
   const [notifikasi, setNotifikasi] = useState([]);
-  const [showModal, setShowModal] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const showModal = notificationsOpen ?? localOpen;
+  const setShowModal = onNotificationsOpenChange ?? setLocalOpen;
 
   useEffect(() => {
     axiosClient.get('/notifikasi').then((res) => setNotifikasi(res.data)).catch(() => {});
@@ -17,7 +19,7 @@ export default function PageHeader({ title, subtitle }) {
     }}
     >
       <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
         padding: '20px 24px',
       }}
       >
@@ -26,30 +28,34 @@ export default function PageHeader({ title, subtitle }) {
           {subtitle && <p style={{ fontSize: 13, color: '#6b7280', margin: '4px 0 0' }}>{subtitle}</p>}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowModal((v) => !v)}
-          title="Notifikasi"
-          style={{
-            position: 'relative', width: 38, height: 38, borderRadius: 12, background: '#f9fafb',
-            border: '1px solid #e2e8f0', color: '#374151', display: 'flex', alignItems: 'center',
-            justifyContent: 'center', padding: 0, flexShrink: 0,
-          }}
-        >
-          <BellIcon />
-          {notifikasi.length > 0 && (
-            <span style={{
-              position: 'absolute', top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 999,
-              background: '#dc2626', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex',
-              alignItems: 'center', justifyContent: 'center', padding: '0 3px', lineHeight: 1,
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={() => setShowModal((v) => !v)}
+            title="Notifikasi"
+            aria-label="Notifikasi"
+            aria-expanded={showModal}
+            style={{
+              position: 'relative', width: 38, height: 38, borderRadius: 12, background: '#f9fafb',
+              border: '1px solid #e2e8f0', color: '#374151', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', padding: 0,
             }}
-            >
-              {notifikasi.length}
-            </span>
-          )}
-        </button>
+          >
+            <BellIcon />
+            {notifikasi.length > 0 && (
+              <span style={{
+                position: 'absolute', top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 999,
+                background: '#dc2626', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex',
+                alignItems: 'center', justifyContent: 'center', padding: '0 3px', lineHeight: 1,
+              }}
+              >
+                {notifikasi.length}
+              </span>
+            )}
+          </button>
 
-        {showModal && <NotificationModal data={notifikasi} onClose={() => setShowModal(false)} />}
+          {showModal && <NotificationModal data={notifikasi} onClose={() => setShowModal(false)} />}
+        </div>
       </div>
     </div>
   );

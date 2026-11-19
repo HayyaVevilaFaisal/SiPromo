@@ -1,8 +1,13 @@
+import FormIcon from '../../components/common/FormIcon';
+import { BoxIcon } from '../../components/common/icons';
 import PageHeader from '../../components/common/PageHeader';
+import { PlusIcon } from '../../components/common/icons';
 
 // Form Tambah/Ubah Aset dipakai oleh halaman Kelola Data Aset (FR-03, FR-04, UC-01)
-export default function AsetForm({ editing, form, setForm, dimensiList, lokasiList, saving, onCancel, onSubmit }) {
+// export default function AsetForm({ editing, form, setForm, levelList, lokasiList, vendorList = [], saving, onCancel, onSubmit, onCreateLokasi, onCreateVendor }) {
+export default function AsetForm({ editing, form, setForm, levelList, lokasiList, vendorList = [], saving, onCancel, onSubmit, onCreateLokasi, onCreateVendor, dariPembelian = false, error }) {
   const isEdit = Boolean(editing);
+  const hidePurchaseFields = dariPembelian && !isEdit;
 
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -17,7 +22,7 @@ export default function AsetForm({ editing, form, setForm, dimensiList, lokasiLi
         style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 20, borderBottom: '1px solid #e2e8f0' }}>
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#e2e5ea', flexShrink: 0 }} />
+          <FormIcon icon={BoxIcon} />
           <div>
             <div style={{ fontWeight: 700, fontSize: 16 }}>
               {isEdit ? 'Ubah Aset' : 'Tambah Aset Baru'}
@@ -31,6 +36,7 @@ export default function AsetForm({ editing, form, setForm, dimensiList, lokasiLi
         </div>
 
         <div style={{ padding: 24 }}>
+          {error && <p role="alert" style={{ color: '#dc2626', marginBottom: 16 }}>{error}</p>}
           <div style={{
             background: '#eff6ff', border: '1px solid #dbeafe', borderRadius: 14, padding: 20,
           }}
@@ -40,7 +46,7 @@ export default function AsetForm({ editing, form, setForm, dimensiList, lokasiLi
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-              <Field label="Nama Aset" required>
+              <Field label="Nama Aset" required showRequired>
                 <input
                   value={form.nama}
                   onChange={(e) => set('nama', e.target.value)}
@@ -48,31 +54,37 @@ export default function AsetForm({ editing, form, setForm, dimensiList, lokasiLi
                   style={inputStyle}
                 />
               </Field>
-              <Field label="Dimensi">
+              <Field label="Level Aset" required showRequired>
                 <select
-                  value={form.dimensi_aset_id}
-                  onChange={(e) => set('dimensi_aset_id', e.target.value)}
+                  value={form.level_aset_id}
+                  onChange={(e) => set('level_aset_id', e.target.value)}
                   style={inputStyle}
                 >
                   <option value="">Tidak ditentukan</option>
-                  {dimensiList.map((d) => (
-                    <option key={d.dimensi_aset_id} value={d.dimensi_aset_id}>{d.nama}</option>
+                  {levelList.map((d) => (
+                    <option key={d.level_aset_id} value={d.level_aset_id}>{d.nama}</option>
                   ))}
                 </select>
               </Field>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-              <Field label="Stok Awal">
+              {!hidePurchaseFields && (
+              <Field label={isEdit ? 'Stok' : 'Stok Awal'}>
                 <input
                   type="number"
                   min="0"
                   value={form.stok}
-                  onChange={(e) => set('stok', e.target.value)}
-                  style={inputStyle}
+                  // onChange={(e) => set('stok', e.target.value)}
+                  onChange={(e) => !isEdit && set('stok', e.target.value)}
+                  readOnly={isEdit}
+                  aria-label={isEdit ? 'Stok' : 'Stok Awal'}
+                  // style={inputStyle}
+                  style={isEdit ? { ...inputStyle, background: '#f3f4f6', color: '#6b7280' } : inputStyle}
                 />
               </Field>
-              <Field label="Threshold" required>
+              )}
+              <Field label="Threshold" required showRequired>
                 <input
                   type="number"
                   min="0"
@@ -82,27 +94,37 @@ export default function AsetForm({ editing, form, setForm, dimensiList, lokasiLi
                   style={inputStyle}
                 />
               </Field>
+            {/* Pemisah baris lama, dipertahankan untuk penggunaan kembali:
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            */}
+              {!hidePurchaseFields && (
               <Field label="Harga Satuan" required>
                 <input
                   type="number"
                   min="0"
                   value={form.harga}
-                  onChange={(e) => set('harga', e.target.value)}
+                  // onChange={(e) => set('harga', e.target.value)}
+                  onChange={(e) => !isEdit && set('harga', e.target.value)}
+                  readOnly={isEdit}
+                  aria-label="Harga Satuan"
                   required
-                  style={inputStyle}
+                  // style={inputStyle}
+                  style={isEdit ? { ...inputStyle, background: '#f3f4f6', color: '#6b7280' } : inputStyle}
                 />
               </Field>
-              <Field label="Lokasi Penyimpanan" required>
+              )}
+              <Field label="Lokasi Penyimpanan" required showRequired>
                 <select
+                  aria-label="Lokasi Penyimpanan"
                   value={form.lokasi_penyimpanan_id}
                   onChange={(e) => set('lokasi_penyimpanan_id', e.target.value)}
                   required
                   style={inputStyle}
                 >
                   <option value="" disabled>Pilih lokasi</option>
+{/* Kode lama, dipertahankan untuk penggunaan kembali:
                   {lokasiList
                     .filter((l) => l.is_active || String(l.lokasi_penyimpanan_id) === String(form.lokasi_penyimpanan_id))
                     .map((l) => (
@@ -110,9 +132,39 @@ export default function AsetForm({ editing, form, setForm, dimensiList, lokasiLi
                         {l.nama}{!l.is_active ? ' (Dihapus)' : ''}
                       </option>
                     ))}
+*/}
+                  {lokasiList.map((l) => (
+                    <option key={l.lokasi_penyimpanan_id} value={l.lokasi_penyimpanan_id}>{l.nama}</option>
+                  ))}
                 </select>
+                {!isEdit && onCreateLokasi && (
+                  <button type="button" onClick={onCreateLokasi} disabled={saving} style={{
+                    display: 'flex', alignItems: 'center', gap: 6, marginTop: 8,
+                    background: '#eff6ff', color: '#155dfc', border: '1px solid #bfdbfe',
+                    padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500,
+                  }}>
+                    <PlusIcon /> Tambah Lokasi Penyimpanan
+                  </button>
+                )}
               </Field>
             </div>
+            {/* Field vendor lama, dipertahankan untuk penggunaan kembali:
+            {!isEdit && (
+              <div style={{ marginTop: 20 }}>
+                <Field label="Vendor">
+                  <select aria-label="Vendor" value={form.vendor_id || ''} onChange={(e) => set('vendor_id', e.target.value)} style={inputStyle}>
+                    <option value="">Tidak ditentukan</option>
+                    {vendorList.map((vendor) => <option key={vendor.vendor_id} value={vendor.vendor_id}>{vendor.nama}</option>)}
+                  </select>
+                  <button type="button" onClick={onCreateVendor} disabled={saving} style={{
+                    display: 'flex', alignItems: 'center', gap: 6, marginTop: 8,
+                    background: '#eff6ff', color: '#155dfc', border: '1px solid #bfdbfe',
+                    padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500,
+                  }}><PlusIcon /> Tambah Vendor</button>
+                </Field>
+              </div>
+            )}
+            */}
           </div>
         </div>
 
@@ -129,11 +181,11 @@ export default function AsetForm({ editing, form, setForm, dimensiList, lokasiLi
   );
 }
 
-function Field({ label, required, children }) {
+function Field({ label, required, showRequired = false, children }) {
   return (
     <div>
       <label style={{ display: 'block', marginBottom: 6 }}>
-        {label} {required && <span style={{ color: '#dc2626' }}>*</span>}
+        {label} {showRequired && required && <span style={{ color: '#dc2626' }}>*</span>}
       </label>
       {children}
     </div>

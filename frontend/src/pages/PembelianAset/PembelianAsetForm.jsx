@@ -1,7 +1,8 @@
+import FormIcon from '../../components/common/FormIcon';
 import { useRef } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import IconButton from '../../components/common/IconButton';
-import { PlusIcon, TrashIcon, UploadIcon } from '../../components/common/icons';
+import { PlusIcon, TrashIcon, UploadIcon, CartIcon } from '../../components/common/icons';
 
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 const MAX_SIZE = 5 * 1024 * 1024;
@@ -12,7 +13,8 @@ function formatRupiah(value) {
 
 // Form Catat/Ubah Pembelian Aset dipakai oleh halaman Pencatatan Pembelian Aset (FR-13..FR-17, UC-07)
 export default function PembelianAsetForm({
-  editing, form, setForm, vendorList, asetList, tahunAjaran, saving, error, onCancel, onSubmit,
+//   editing, form, setForm, vendorList, asetList, tahunAjaran, saving, error, onCancel, onSubmit, onCreateVendor,
+  editing, form, setForm, vendorList, asetList, tahunAjaran, saving, error, onCancel, onSubmit, onCreateVendor, onCreateAset,
 }) {
   const isEdit = Boolean(editing);
   const fileInputRef = useRef(null);
@@ -24,12 +26,12 @@ export default function PembelianAsetForm({
   function setRow(idx, field, value) {
     setForm((f) => ({
       ...f,
-      daftar_aset: f.daftar_aset.map((row, i) => (i === idx ? { ...row, [field]: value } : row)),
+      daftar_aset: f.daftar_aset.map((row, i) => (i === idx ? { ...row, [field]: value, ...(field === 'aset_id' ? { unit_price: hargaAset(value) ?? '' } : {}) } : row)),
     }));
   }
 
   function addRow() {
-    setForm((f) => ({ ...f, daftar_aset: [...f.daftar_aset, { aset_id: '', qty_in: '' }] }));
+    setForm((f) => ({ ...f, daftar_aset: [...f.daftar_aset, { aset_id: '', qty_in: '', unit_price: '' }] }));
   }
 
   function hargaAset(asetId) {
@@ -61,7 +63,7 @@ export default function PembelianAsetForm({
 
   const dipilih = form.daftar_aset.filter((row) => row.aset_id).length;
   const totalNilai = form.daftar_aset.reduce(
-    (sum, row) => sum + (Number(row.qty_in) || 0) * (hargaAset(row.aset_id) || 0),
+    (sum, row) => sum + (Number(row.qty_in) || 0) * (Number(row.unit_price) || 0),
     0
   );
 
@@ -74,7 +76,7 @@ export default function PembelianAsetForm({
         style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 20, borderBottom: '1px solid #e2e8f0' }}>
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#e2e5ea', flexShrink: 0 }} />
+          <FormIcon icon={CartIcon} />
           <div>
             <div style={{ fontWeight: 700, fontSize: 16 }}>
               {isEdit ? 'Ubah Pembelian Aset' : 'Catat Pembelian Aset'}
@@ -119,6 +121,18 @@ export default function PembelianAsetForm({
                     <option key={v.vendor_id} value={v.vendor_id}>{v.nama}</option>
                   ))}
                 </select>
+                <button
+                  type="button"
+                  onClick={onCreateVendor}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, marginTop: 8,
+                    background: '#eff6ff', color: '#155dfc',
+                    border: '1px solid #bfdbfe', padding: '8px 14px',
+                    borderRadius: 10, fontSize: 13, fontWeight: 500,
+                  }}
+                >
+                  <PlusIcon /> Tambah Vendor Baru
+                </button>
               </Field>
               <Field label="Tanggal Pembelian" required>
                 <input
@@ -222,11 +236,31 @@ export default function PembelianAsetForm({
           </div>
 
           <div>
+            {/* Teks lama:
+            <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>Harga satuan otomatis mengikuti harga aset dan dapat diubah. Harga yang disimpan akan menjadi harga terbaru aset.</p>
+            */}
+            <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>Harga satuan otomatis mengikuti harga aset dan dapat diubah. Stok dan harga aset hanya diperbarui setelah pembelian berstatus Lunas. Harga aset mengikuti pembelian Lunas terbaru.</p>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#111827', textTransform: 'uppercase', letterSpacing: 0.4 }}>
                 Daftar Aset
               </div>
-              <button
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {!isEdit && onCreateAset && (
+                <button
+                  type="button"
+                  onClick={onCreateAset}
+                  disabled={saving}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    background: '#eff6ff', color: '#155dfc', border: '1px solid #bfdbfe',
+                    padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500,
+                  }}
+                >
+                  <PlusIcon /> Tambah Aset
+                </button>
+              )}
+              {/* Tombol dan posisi lama, dipertahankan untuk penggunaan kembali:
+<button
                 type="button"
                 onClick={addRow}
                 style={{
@@ -236,6 +270,8 @@ export default function PembelianAsetForm({
               >
                 <PlusIcon /> Tambah Daftar Aset
               </button>
+                */}
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 140px 40px', gap: 12, marginBottom: 8, padding: '0 2px' }}>
@@ -270,10 +306,17 @@ export default function PembelianAsetForm({
                     style={inputStyle}
                   />
                   <input
-                    value={row.aset_id ? formatRupiah(hargaAset(row.aset_id)) : '-'}
-                    disabled
-                    title="Otomatis mengikuti harga aset"
-                    style={{ ...inputStyle, background: '#f3f4f6', color: '#6b7280' }}
+                    type="number"
+                    min="0"
+                    max="9999999999.99"
+                    step="0.01"
+                    aria-label={`Harga satuan aset ${idx + 1}`}
+                    value={row.unit_price ?? ''}
+                    onChange={(e) => setRow(idx, 'unit_price', e.target.value)}
+                    required
+                    disabled={!row.aset_id}
+                    placeholder="Harga satuan"
+                    style={inputStyle}
                   />
                   <IconButton title="Hapus baris" bg="#fee2e2" color="#dc2626" onClick={() => removeRow(idx)}>
                     <TrashIcon />
@@ -281,6 +324,17 @@ export default function PembelianAsetForm({
                 </div>
               ))
             )}
+
+            <button
+                type="button"
+                onClick={addRow}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, background: '#fff', color: '#374151',
+                  border: '1px solid #d1d5db', padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500,
+                }}
+              >
+                <PlusIcon /> Tambah Jenis Aset
+              </button>
 
             <div style={{
               background: '#eff6ff', border: '1px solid #dbeafe', borderRadius: 10, padding: '14px 18px',
@@ -295,7 +349,7 @@ export default function PembelianAsetForm({
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0' }}>
-          <span style={{ fontSize: 13, color: '#6b7280' }}>{dipilih} Aset dipilih</span>
+          <span style={{ fontSize: 13, color: '#6b7280' }}>{dipilih} jenis aset dipilih</span>
           <div style={{ display: 'flex', gap: 10 }}>
             <button type="button" onClick={onCancel} style={{ background: '#e2e8f0', color: '#374151', padding: '10px 20px', borderRadius: 10 }}>
               Batal

@@ -32,44 +32,110 @@ const emptyStateStyle = { fontSize: 13, color: '#9ca3af', textAlign: 'center', p
 // FR-02, UC-08 - Dashboard Ringkasan Aset
 export default function Dashboard() {
   const [data, setData] = useState(null);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  const [periods, setPeriods] = useState([]);
+  const [selectedId, setSelectedId] = useState('');
+  const [currentId, setCurrentId] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [listError, setListError] = useState('');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
-    axiosClient.get('/dashboard').then((res) => setData(res.data)).catch(() => {});
+    let active = true;
+    axiosClient.get('/tahun-ajaran').then(({ data: rows }) => {
+      if (active) setPeriods(Array.isArray(rows) ? rows : []);
+    }).catch(() => {
+      if (active) setListError('Daftar tahun ajaran gagal dimuat. Muat ulang halaman untuk mencoba lagi.');
+    });
+    return () => { active = false; };
   }, []);
 
-  if (!data) return <p>Memuat dashboard...</p>;
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError('');
+    const request = selectedId
+      ? axiosClient.get('/dashboard', { params: { tahunAjaranId: selectedId } })
+      : axiosClient.get('/dashboard');
+    request.then(({ data: summary }) => {
+      if (!active) return;
+      setData(summary);
+      if (!selectedId) setCurrentId(String(summary.tahun_ajaran?.tahun_ajaran_id ?? ''));
+    }).catch(() => {
+      if (active) setError('Ringkasan aset gagal dimuat. Silakan coba lagi.');
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
+  }, [selectedId, retry]);
+
+  const isHistory = Boolean(selectedId && selectedId !== currentId);
+  const options = [...periods];
+  if (data?.tahun_ajaran?.tahun_ajaran_id && !options.some(row => String(row.tahun_ajaran_id) === String(data.tahun_ajaran.tahun_ajaran_id))) options.push(data.tahun_ajaran);
+  options.sort((a, b) => String(b.tanggal_mulai || b.tahun).localeCompare(String(a.tanggal_mulai || a.tahun)));
 
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle="Ringkasan penggunaan dan pembelian aset promosi Informatika UNPAR" />
+      <PageHeader
+        title="Dashboard"
+        subtitle="Ringkasan penggunaan dan pembelian aset promosi Informatika UNPAR"
+        notificationsOpen={notificationsOpen}
+        onNotificationsOpenChange={setNotificationsOpen}
+      />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
-        <span style={{ fontSize: 14, color: '#374151' }}>Data semester berjalan:</span>
-        <span style={pillStyle}>
-          {data.tahun_ajaran ? `Semester ${data.tahun_ajaran.semester} ${data.tahun_ajaran.tahun}` : 'Belum ada tahun ajaran aktif'}
-        </span>
+        <span style={{ fontSize: 14, color: '#374151' }}>{isHistory ? 'Data semester:' : 'Data semester berjalan:'}</span>
+        {!loading && !error && <span style={pillStyle}>
+          {data?.tahun_ajaran ? `Semester ${data.tahun_ajaran.semester} ${data.tahun_ajaran.tahun}` : 'Belum ada tahun ajaran aktif'}
+        </span>}
+        <select aria-label="Tahun ajaran dashboard" disabled={loading && !data} value={selectedId || currentId}
+          onChange={event => {
+            setSelectedId(event.target.value === currentId ? '' : event.target.value);
+            setNotificationsOpen(false);
+          }}
+          style={{ marginLeft: 'auto', background: '#fff', color: '#374151', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px', font: 'inherit', maxWidth: '100%' }}>
+          {!currentId && <option value="">Semester berjalan</option>}
+          {options.map(row => <option key={row.tahun_ajaran_id} value={String(row.tahun_ajaran_id)}>
+            {row.semester} {row.tahun}{String(row.tahun_ajaran_id) === currentId ? ' (Berjalan)' : ''}
+          </option>)}
+        </select>
       </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(180px, 1fr))', gap: 16, marginBottom: 16 }}>
+      {listError && <p role="alert">{listError}</p>}
+      {loading ? <p role="status">Memuat dashboard...</p> : error ? (
+        <div role="alert">{error} <button type="button" onClick={() => setRetry(value => value + 1)}>Coba lagi</button></div>
+      ) : data && <>
+      <div style={{ display: 'grid', gridTemplateColumns: isHistory ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(180px, 1fr))', gap: 16, marginBottom: 16 }}>
         <StatCard
           icon={<CartIcon size={20} />}
-          label="Total Penggunaan"
+          label="Total Unit Digunakan"
           value={data.total_penggunaan}
           sublabel={`${data.jumlah_kegiatan} Kegiatan`}
           variant="primary"
         />
         <StatCard
           icon={<WalletIcon size={20} />}
-          label="Nilai Pembelian"
+          label="Total Nilai Pembelian"
           value={formatRupiah(data.nilai_pembelian)}
           sublabel={`${data.jumlah_transaksi} Transaksi`}
         />
-        <StatCard
+        {!isHistory && <><StatCard
           icon={<AlertTriangleIcon size={20} />}
           label="Perlu Restock"
           value={data.perlu_restock}
-          sublabel="Item dibawah threshold"
+          sublabel={(
+            <button
+              type="button"
+              onClick={() => setNotificationsOpen(true)}
+              aria-expanded={notificationsOpen}
+              style={{ background: 'transparent', color: 'inherit', font: 'inherit', padding: 0, borderRadius: 0, textDecoration: 'underline', textUnderlineOffset: 2, textAlign: 'left' }}
+            >
+              {/* Teks lama: lihat selengkapnya di notifikasi */}
+              Lihat selengkapnya
+            </button>
+          )}
           variant="danger"
         />
         <StatCard
@@ -77,7 +143,7 @@ export default function Dashboard() {
           label="Total Stok Aset"
           value={data.total_stok}
           sublabel={`${data.jenis_aset} jenis terdaftar`}
-        />
+        /></>}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: 16, marginBottom: 16 }}>
@@ -90,9 +156,10 @@ export default function Dashboard() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <PenggunaanTerbaruCard data={data.penggunaan_terbaru} />
-        <PembelianTerbaruCard data={data.pembelian_terbaru} />
+        <PenggunaanTerbaruCard data={data.penggunaan_terbaru} isHistory={isHistory} />
+        <PembelianTerbaruCard data={data.pembelian_terbaru} isHistory={isHistory} />
       </div>
+      </>}
     </div>
   );
 }
@@ -124,7 +191,6 @@ function StatCard({ icon, label, value, sublabel, variant }) {
 
 function ChartCard({ chartData, jumlahKegiatan, totalUnit }) {
   const max = Math.max(1, ...chartData.map((b) => b.total_unit));
-  const peakIndex = chartData.reduce((best, b, i) => (b.total_unit > (chartData[best] ? chartData[best].total_unit : -1) ? i : best), 0);
 
   return (
     <div style={cardWrapperStyle}>
@@ -140,16 +206,17 @@ function ChartCard({ chartData, jumlahKegiatan, totalUnit }) {
         <p style={emptyStateStyle}>Belum ada data penggunaan pada semester ini.</p>
       ) : (
         <>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 150, marginTop: 24, padding: '0 4px' }}>
-            {chartData.map((b, i) => {
-              const heightPct = Math.max(4, (b.total_unit / max) * 100);
-              const isPeak = i === peakIndex && b.total_unit > 0;
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 150, marginTop: 32, padding: '0 4px', borderBottom: '1px solid #f1f5f9' }}>
+            {chartData.map((b) => {
+              const heightPct = (Number(b.total_unit) / max) * 100;
+              const isActive = b.is_bulan_aktif;
               return (
-                <div key={b.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
-                  {isPeak && <span style={{ fontSize: 13, fontWeight: 700, color: ACCENT, marginBottom: 6 }}>{b.total_unit}</span>}
-                  <div style={{
-                    width: '100%', maxWidth: 34, borderRadius: 6, height: `${heightPct}%`,
-                    background: isPeak ? ACCENT : '#e5e7eb',
+                <div key={b.label} style={{ flex: 1, position: 'relative', height: '100%' }}>
+                  <span style={{ position: 'absolute', bottom: `calc(${heightPct}% + 6px)`, left: 0, width: '100%', textAlign: 'center', fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? ACCENT : '#6b7280' }}>{b.total_unit}</span>
+                  <div role="img" aria-label={`${b.label}: ${b.total_unit} unit${isActive ? ', bulan aktif' : ''}`} style={{
+                    position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+                    width: '100%', maxWidth: 34, borderRadius: '6px 6px 0 0', height: `${heightPct}%`,
+                    background: isActive ? ACCENT : '#e5e7eb',
                   }}
                   />
                 </div>
@@ -219,23 +286,52 @@ function TerbanyakCard({ data }) {
   );
 }
 
-function PenggunaanTerbaruCard({ data }) {
+function RiwayatList({ data, pembelian = false }) {
+  if (!data.length) return <p style={emptyStateStyle}>Belum ada data.</p>;
+  return (
+    <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+      {data.map(row => (
+        <li key={pembelian ? row.pembelian_id : row.kegiatan_id} style={{ padding: '16px 0', borderTop: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <strong style={{ fontSize: 14 }}>{pembelian ? row.vendor_nama : row.kegiatan_nama}</strong>
+            <strong style={{ color: ACCENT }}>{pembelian ? formatRupiah(row.total_harga) : `${row.qty_out} unit`}</strong>
+          </div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>
+            {formatTanggal(row.tanggal)} · {pembelian ? `${row.qty_in} unit` : `${row.jenis_aset} jenis aset`}
+            {pembelian && <span style={{ ...statusBadgeStyle(row.status), padding: '3px 8px', borderRadius: 999, marginLeft: 8 }}>{row.status}</span>}
+          </div>
+          <ul aria-label={`Rincian aset ${pembelian ? `pembelian ${row.pembelian_id}` : row.kegiatan_nama}`} style={{ listStyle: 'none', margin: '12px 0 0', padding: 12, background: '#f9fafb', borderRadius: 8 }}>
+            {(row.aset_detail || []).map(aset => (
+              <li key={aset.aset_id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '5px 0', fontSize: 13 }}>
+                <span>{aset.aset_nama}</span>
+                <span style={{ textAlign: 'right' }}>{pembelian ? `${aset.qty_in} unit · ${formatRupiah(aset.total_harga)}` : `${aset.qty_out} unit`}</span>
+              </li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function PenggunaanTerbaruCard({ data, isHistory }) {
   return (
     <div style={cardWrapperStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
         <div>
-          <h3 style={cardTitleStyle}>Penggunaan Terbaru Semester Ini</h3>
-          <p style={cardSubtitleStyle}>{data.length} penggunaan aset terbaru</p>
+          <h3 style={cardTitleStyle}>{isHistory ? 'Kegiatan dengan Penggunaan Aset Terbanyak' : 'Penggunaan Terbaru Semester Ini'}</h3>
+          <p style={cardSubtitleStyle}>{isHistory ? 'Kegiatan dengan total unit penggunaan tertinggi pada semester ini' : `${data.length} penggunaan aset terbaru`}</p>
         </div>
         <Link to="/penggunaan-aset" style={pillButtonStyle}>Lihat Semua</Link>
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      {isHistory ? <RiwayatList data={data} /> : <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <Th>Aset</Th>
+              {!isHistory && <Th>Aset</Th>}
               <Th>Kegiatan</Th>
-              <Th>Qty</Th>
+              {isHistory && <Th>Jenis Aset</Th>}
+              <Th>{isHistory ? 'Total Unit' : 'Qty'}</Th>
               <Th>Tanggal</Th>
             </tr>
           </thead>
@@ -245,35 +341,36 @@ function PenggunaanTerbaruCard({ data }) {
             )}
             {data.map((row, i) => (
               <tr key={i}>
-                <Td>{row.aset_nama}</Td>
+                {!isHistory && <Td>{row.aset_nama}</Td>}
                 <Td><span style={pillStyle}>{row.kegiatan_nama}</span></Td>
+                {isHistory && <Td>{row.jenis_aset}</Td>}
                 <Td><strong style={{ color: ACCENT }}>{row.qty_out}</strong></Td>
                 <Td>{formatTanggal(row.tanggal)}</Td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </div>}
     </div>
   );
 }
 
-function PembelianTerbaruCard({ data }) {
+function PembelianTerbaruCard({ data, isHistory }) {
   return (
     <div style={cardWrapperStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
         <div>
-          <h3 style={cardTitleStyle}>Pembelian Terbaru Semester Ini</h3>
-          <p style={cardSubtitleStyle}>{data.length} pembelian aset terbaru</p>
+          <h3 style={cardTitleStyle}>{isHistory ? 'Pembelian Terbesar Semester ini' : 'Pembelian Terbaru Semester Ini'}</h3>
+          <p style={cardSubtitleStyle}>{isHistory ? 'Transaksi dengan total nilai pembelian tertinggi pada semester ini' : `${data.length} pembelian aset terbaru`}</p>
         </div>
         <Link to="/pembelian-aset" style={pillButtonStyle}>Lihat Semua</Link>
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      {isHistory ? <RiwayatList data={data} pembelian /> : <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <Th>Aset</Th>
-              <Th>Qty</Th>
+              <Th>{isHistory ? 'Transaksi / Vendor' : 'Aset'}</Th>
+              <Th>{isHistory ? 'Total Unit' : 'Qty'}</Th>
               <Th>Total</Th>
               <Th>Status</Th>
             </tr>
@@ -284,7 +381,7 @@ function PembelianTerbaruCard({ data }) {
             )}
             {data.map((row, i) => (
               <tr key={i}>
-                <Td>{row.aset_nama}</Td>
+                <Td>{isHistory ? <><strong>{row.vendor_nama}</strong><div style={{ fontSize: 12, color: '#6b7280' }}>{formatTanggal(row.tanggal)}</div></> : row.aset_nama}</Td>
                 <Td><strong style={{ color: ACCENT }}>{row.qty_in}</strong></Td>
                 <Td>{formatRupiah(row.total_harga)}</Td>
                 <Td>
@@ -296,7 +393,7 @@ function PembelianTerbaruCard({ data }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </div>}
     </div>
   );
 }

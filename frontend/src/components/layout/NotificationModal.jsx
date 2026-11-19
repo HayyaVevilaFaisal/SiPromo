@@ -1,4 +1,4 @@
-import { BellIcon, AlertTriangleIcon } from '../common/icons';
+import { BellIcon, AlertTriangleIcon, CloseIcon } from '../common/icons';
 
 // UC-05 - Modal Notifikasi Restock. Notifikasi otomatis hilang dari daftar ini ketika
 // stok aset sudah tidak lagi di bawah threshold (lihat backend/src/utils/stockNotification.js).
@@ -10,7 +10,7 @@ export default function NotificationModal({ data, onClose }) {
         style={{ position: 'fixed', inset: 0, zIndex: 9 }}
       />
       <div style={{
-        position: 'absolute', top: 54, right: 24, background: '#fff',
+        position: 'absolute', top: 'calc(100% + 12px)', right: 0, background: '#fff',
         border: '1px solid #e5e7eb', borderRadius: 16, width: 320,
         boxShadow: '0 12px 30px rgba(0,0,0,0.12)', zIndex: 10, overflow: 'hidden',
       }}
@@ -22,6 +22,19 @@ export default function NotificationModal({ data, onClose }) {
         >
           <BellIcon />
           <strong style={{ fontSize: 15, fontWeight: 700 }}>Notifikasi Restock</strong>
+          <button
+            type="button"
+            title="Tutup"
+            aria-label="Tutup notifikasi"
+            onClick={onClose}
+            style={{
+              marginLeft: 'auto', width: 24, height: 24, borderRadius: 8,
+              background: 'transparent', color: '#6b7280', padding: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <CloseIcon />
+          </button>
         </div>
 
         <div style={{ maxHeight: 360, overflowY: 'auto' }}>

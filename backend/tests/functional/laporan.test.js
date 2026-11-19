@@ -1,3 +1,4 @@
+jest.mock('../../src/middlewares/authMiddleware', () => require('../helpers/businessAuth'));
 // Functional test - endpoint /api/laporan (FR-18, FR-19, NFR-14, UC-09, UC-10).
 // buildLaporan() melakukan beberapa query berurutan; jumlah query berbeda tergantung apakah
 // tahun ajaran yang diminta "aktif" (query rekap stok ke-4 hanya jalan kalau aktif).
@@ -8,6 +9,8 @@ const request = require('supertest');
 const pool = require('../../src/config/db');
 const app = require('../../src/app');
 const { authHeader } = require('../helpers/mockPool');
+// Query stok opname sudah ada pada service; hasil kosong menjadi default fixture.
+beforeEach(() => pool.query.mockResolvedValue({ rows: [] }));
 
 const taTidakAktif = {
   tahun_ajaran_id: 2, tahun: '2024/2025', semester: 'Genap',
@@ -18,15 +21,15 @@ const taAktif = { ...taTidakAktif, tahun_ajaran_id: 5, tahun: '2026/2027', semes
 
 const pembelianRow = {
   pembelian_id: 1, tanggal: '2025-05-15', status: 'Lunas', vendor_nama: 'Toko Kreatif Jaya',
-  aset_nama: 'Pulpen Informatika', dimensi_nama: 'Kecil', qty_in: 10, unit_price: 4500, total_harga: 45000,
+  aset_nama: 'Pulpen Informatika', level_nama: 'Kecil', qty_in: 10, unit_price: 4500, total_harga: 45000,
 };
 const penggunaanRow = {
   kegiatan_id: 1, kegiatan_nama: 'Campus Expo', tanggal: '2025-03-10',
-  aset_nama: 'Pulpen Informatika', dimensi_nama: 'Kecil', qty_out: 5, vendor_nama: 'Toko Kreatif Jaya',
+  aset_nama: 'Pulpen Informatika', level_nama: 'Kecil', qty_out: 5, vendor_nama: 'Toko Kreatif Jaya',
 };
 const stokRow = {
   aset_id: 1, nama: 'Pulpen Informatika', harga: 4500, threshold_qty: 50,
-  dimensi_nama: 'Kecil', lokasi_nama: '9110', sisa_stok: 120, ada_perubahan: true,
+  level_nama: 'Kecil', lokasi_nama: '9110', sisa_stok: 120, ada_perubahan: true,
 };
 
 describe('/api/laporan', () => {
@@ -61,7 +64,8 @@ describe('/api/laporan', () => {
       const res = await request(app).get('/api/laporan?tahunAjaranId=2').set('Authorization', authHeader());
 
       expect(res.status).toBe(200);
-      expect(pool.query).toHaveBeenCalledTimes(3);
+//       expect(pool.query).toHaveBeenCalledTimes(3);
+      expect(pool.query).toHaveBeenCalledTimes(4);
       expect(res.body.rekap_stok).toEqual([]);
       expect(res.body.ringkasan.total_sisa_stok).toBe(0);
       expect(res.body.ringkasan.total_nilai_pembelian).toBe(45000);
@@ -76,12 +80,14 @@ describe('/api/laporan', () => {
         .mockResolvedValueOnce({ rows: [taAktif] })
         .mockResolvedValueOnce({ rows: [pembelianRow] })
         .mockResolvedValueOnce({ rows: [penggunaanRow] })
+        .mockResolvedValueOnce({ rows: [] }) // stok opname
         .mockResolvedValueOnce({ rows: [stokRow] });
 
       const res = await request(app).get('/api/laporan?tahunAjaranId=5').set('Authorization', authHeader());
 
       expect(res.status).toBe(200);
-      expect(pool.query).toHaveBeenCalledTimes(4);
+//       expect(pool.query).toHaveBeenCalledTimes(4);
+      expect(pool.query).toHaveBeenCalledTimes(5);
       expect(res.body.rekap_stok).toEqual([stokRow]);
       expect(res.body.ringkasan.total_sisa_stok).toBe(120);
       expect(res.body.tahun_ajaran.is_tahun_ajaran_aktif).toBe(true);
@@ -144,6 +150,7 @@ describe('/api/laporan', () => {
         .mockResolvedValueOnce({ rows: [taAktif] })
         .mockResolvedValueOnce({ rows: banyakPembelian })
         .mockResolvedValueOnce({ rows: banyakPenggunaan })
+        .mockResolvedValueOnce({ rows: [] }) // stok opname
         .mockResolvedValueOnce({ rows: banyakStok });
 
       const res = await request(app).get('/api/laporan/export-pdf?tahunAjaranId=5').set('Authorization', authHeader()).buffer(true).parse((r, cb) => {
@@ -157,4 +164,17 @@ describe('/api/laporan', () => {
       expect(res.body.length).toBeGreaterThan(3000);
     }, 10000);
   });
+});
+
+
+test('ringkasan aset masuk hanya menghitung pembelian Lunas, rincian tetap menampilkan DP/Belum Bayar', async () => {
+  const pending = { ...pembelianRow, pembelian_id: 2, status: 'DP', qty_in: 20, total_harga: 90000 };
+  const unpaid = { ...pembelianRow, pembelian_id: 3, status: 'Belum Bayar', qty_in: 30, total_harga: 135000 };
+  pool.query.mockResolvedValueOnce({ rows: [taTidakAktif] })
+    .mockResolvedValueOnce({ rows: [pembelianRow, pending, unpaid] })
+    .mockResolvedValueOnce({ rows: [] });
+  const res = await request(app).get('/api/laporan?tahunAjaranId=2').set('Authorization', authHeader());
+  expect(res.status).toBe(200);
+  expect(res.body.ringkasan.total_qty_masuk).toBe(10);
+  expect(res.body.rincian_pembelian).toHaveLength(3);
 });

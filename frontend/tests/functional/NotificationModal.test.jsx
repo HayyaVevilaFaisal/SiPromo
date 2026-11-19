@@ -32,4 +32,13 @@ describe('NotificationModal', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  test('memanggil onClose saat tombol X diklik', async () => {
+    const onClose = vi.fn();
+    render(<NotificationModal data={[]} onClose={onClose} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Tutup notifikasi' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

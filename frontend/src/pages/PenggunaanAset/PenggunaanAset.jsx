@@ -1,17 +1,27 @@
 import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axiosClient from '../../api/axiosClient';
-import ConfirmDialog from '../../components/common/ConfirmDialog';
 import PageHeader from '../../components/common/PageHeader';
 import IconButton from '../../components/common/IconButton';
 import { Th, Td } from '../../components/common/DataTable';
 import {
-  SearchIcon, PlusIcon, EditIcon, TrashIcon, FlagIcon,
+  SearchIcon, PlusIcon, EditIcon, ClipboardCheckIcon,
 } from '../../components/common/icons';
 import PenggunaanAsetForm from './PenggunaanAsetForm';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const emptyForm = {
   nama: '', tanggal: '', catatan: '', daftar_aset: [{ aset_id: '', qty_out: '' }],
 };
+
+function assetSignature(items) {
+  const totals = new Map();
+  for (const item of items) {
+    const id = Number(item.aset_id);
+    totals.set(id, (totals.get(id) || 0) + Number(item.qty_out));
+  }
+  return JSON.stringify([...totals].sort(([a], [b]) => a - b));
+}
 
 function formatTanggal(value) {
   if (!value) return '-';
@@ -53,25 +63,27 @@ function findTahunAjaran(tanggal, tahunAjaranList) {
 
 // FR-10, FR-11, FR-12, UC-06 - Kelola Pencatatan Penggunaan Aset
 export default function PenggunaanAset() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const kembaliDariAset = location.state?.kembaliDariAset;
   const [data, setData] = useState([]);
   const [tahunAjaranList, setTahunAjaranList] = useState([]);
   const [asetList, setAsetList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('aktif');
   const [tahunAjaranId, setTahunAjaranId] = useState('');
-  const [view, setView] = useState('list'); // 'list' | 'form'
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState(emptyForm);
+  const [view, setView] = useState(kembaliDariAset ? 'form' : 'list'); // 'list' | 'form'
+  const [editing, setEditing] = useState(kembaliDariAset?.editing ?? null);
+  const [form, setForm] = useState(kembaliDariAset?.form ?? emptyForm);
   const [saving, setSaving] = useState(false);
-  const [confirmTarget, setConfirmTarget] = useState(null);
   const [error, setError] = useState('');
+  const [pendingPayload, setPendingPayload] = useState(null);
 
   async function fetchData(params = {}) {
     setLoading(true);
     setError('');
     try {
-      const res = await axiosClient.get('/penggunaan-aset', { params: { search, status, tahunAjaranId, ...params } });
+      const res = await axiosClient.get('/penggunaan-aset', { params: { search, tahunAjaranId, ...params } });
       setData(res.data);
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal memuat data penggunaan aset. Pastikan server backend aktif.');
@@ -82,8 +94,10 @@ export default function PenggunaanAset() {
 
   useEffect(() => {
     fetchData();
-    axiosClient.get('/tahun-ajaran', { params: { status: 'aktif' } }).then((res) => setTahunAjaranList(res.data)).catch(() => {});
-    axiosClient.get('/aset', { params: { status: 'aktif' } }).then((res) => setAsetList(res.data)).catch(() => {});
+//     axiosClient.get('/tahun-ajaran', { params: { status: 'aktif' } }).then((res) => setTahunAjaranList(res.data)).catch(() => {});
+    axiosClient.get('/tahun-ajaran').then((res) => setTahunAjaranList(res.data)).catch(() => {});
+//     axiosClient.get('/aset', { params: { status: 'aktif' } }).then((res) => setAsetList(res.data)).catch(() => {});
+    axiosClient.get('/aset').then((res) => setAsetList(res.data)).catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function openCreateForm() {
@@ -94,6 +108,10 @@ export default function PenggunaanAset() {
   }
 
   function openEditForm(row) {
+    if (!row.can_edit) {
+      setError('Pencatatan hanya dapat diedit pada tahun ajaran terbaru yang sudah berjalan.');
+      return;
+    }
     setEditing(row);
     setForm({
       nama: row.nama,
@@ -108,12 +126,18 @@ export default function PenggunaanAset() {
   }
 
   function closeForm() {
+    setPendingPayload(null);
     setView('list');
     setEditing(null);
   }
 
+//   function openTambahAset() {
+//     navigate('/aset', { state: { dariPenggunaan: { form, editing } } });
+//   }
+
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving || pendingPayload) return;
     setError('');
 
     const daftar_aset = form.daftar_aset
@@ -143,6 +167,17 @@ export default function PenggunaanAset() {
       if (editing) {
         await axiosClient.put(`/penggunaan-aset/${editing.kegiatan_id}`, payload);
       } else {
+        const existing = await axiosClient.get('/penggunaan-aset');
+        const signature = assetSignature(daftar_aset);
+        const duplicate = existing.data.some((row) =>
+          row.nama.trim() === payload.nama.trim()
+          && toDateInputValue(row.tanggal) === payload.tanggal
+          && assetSignature(row.daftar_aset) === signature
+        );
+        if (duplicate) {
+          setPendingPayload(payload);
+          return;
+        }
         await axiosClient.post('/penggunaan-aset', payload);
       }
       closeForm();
@@ -154,16 +189,20 @@ export default function PenggunaanAset() {
     }
   }
 
-  async function handleDelete() {
-    if (!confirmTarget) return;
+  async function confirmDuplicate() {
+    if (saving || !pendingPayload) return;
+    const payload = pendingPayload;
+    setPendingPayload(null);
+    setSaving(true);
     setError('');
     try {
-      await axiosClient.patch(`/penggunaan-aset/${confirmTarget.kegiatan_id}/arsip`);
-      setConfirmTarget(null);
+      await axiosClient.post('/penggunaan-aset', payload);
+      closeForm();
       fetchData();
     } catch (err) {
-      setConfirmTarget(null);
-      setError(err.response?.data?.message || 'Gagal menghapus catatan penggunaan.');
+      setError(err.response?.data?.message || 'Gagal menyimpan pencatatan penggunaan.');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -172,24 +211,30 @@ export default function PenggunaanAset() {
     fetchData({ tahunAjaranId: value });
   }
 
-  function handleStatusChange(value) {
-    setStatus(value);
-    fetchData({ status: value });
-  }
-
   if (view === 'form') {
     return (
+      <>
       <PenggunaanAsetForm
         editing={editing}
         form={form}
         setForm={setForm}
         asetList={asetList}
+        // onCreateAset={openTambahAset}
         tahunAjaran={findTahunAjaran(form.tanggal, tahunAjaranList)}
         saving={saving}
         error={error}
         onCancel={closeForm}
         onSubmit={handleSubmit}
       />
+      <ConfirmDialog
+        open={Boolean(pendingPayload)}
+        title="Konfirmasi Pencatatan"
+        description="Pencatatan dengan nama kegiatan, tanggal, dan daftar aset yang sama sudah pernah dibuat. Apakah Anda yakin ingin menyimpan pencatatan ini?"
+        confirmLabel="Ya, Simpan"
+        onCancel={() => setPendingPayload(null)}
+        onConfirm={confirmDuplicate}
+      />
+      </>
     );
   }
 
@@ -211,7 +256,7 @@ export default function PenggunaanAset() {
         <div style={{ position: 'relative', flex: 1, maxWidth: 360 }}>
           <SearchIcon style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
           <input
-            placeholder="Cari catatan penggunaan..."
+            placeholder="Cari kegiatan atau aset"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && fetchData()}
@@ -221,19 +266,7 @@ export default function PenggunaanAset() {
 
         <div style={{ display: 'flex', gap: 10 }}>
           <select
-            value={status}
-            onChange={(e) => handleStatusChange(e.target.value)}
-            style={{
-              background: '#fff', color: '#374151', border: '1px solid #d1d5db',
-              padding: '10px 16px', borderRadius: 10, fontSize: 14, fontWeight: 500,
-            }}
-          >
-            <option value="">Semua Status</option>
-            <option value="aktif">Aktif</option>
-            <option value="arsip">Terhapus</option>
-          </select>
-
-          <select
+            aria-label="Tahun Ajaran"
             value={tahunAjaranId}
             onChange={(e) => handleTahunAjaranChange(e.target.value)}
             style={{
@@ -283,7 +316,7 @@ export default function PenggunaanAset() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   }}
                   >
-                    <FlagIcon />
+                    <ClipboardCheckIcon />
                   </div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 16 }}>{row.nama}</div>
@@ -309,21 +342,27 @@ export default function PenggunaanAset() {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 12, color: '#6b7280' }}>Total Aset</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#155dfc' }}>{row.total_qty_out} unit</div>
-                  </div>
-                  {row.is_active ? (
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <IconButton title="Ubah" bg="#eef2ff" color="#4338ca" onClick={() => openEditForm(row)}>
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton title="Hapus" bg="#fee2e2" color="#dc2626" onClick={() => setConfirmTarget(row)}>
-                        <TrashIcon />
-                      </IconButton>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>
+                      Total Digunakan
                     </div>
-                  ) : (
-                    <span style={{ fontSize: 12, color: '#9ca3af' }}>Terhapus</span>
-                  )}
+
+                    <div style={{
+                      fontSize: 15,
+                      fontWeight: 700,
+                      color: '#155dfc'
+                    }}>
+                      {row.total_qty_out} unit
+                    </div>
+                  </div>
+
+                  {row.can_edit && <IconButton
+                    title="Ubah"
+                    bg="#eef2ff"
+                    color="#4338ca"
+                    onClick={() => openEditForm(row)}
+                  >
+                    <EditIcon />
+                  </IconButton>}
                 </div>
               </div>
 
@@ -333,7 +372,7 @@ export default function PenggunaanAset() {
                     <tr style={{ background: '#f9fafb' }}>
                       <Th>#</Th>
                       <Th>Nama Aset</Th>
-                      <Th>Dimensi</Th>
+                      <Th>Level</Th>
                       <Th>Qty Keluar</Th>
                       <Th>Vendor</Th>
                       <Th>Lokasi</Th>
@@ -348,9 +387,9 @@ export default function PenggunaanAset() {
                           <Td>{idx + 1}</Td>
                           <Td>{item.aset_nama}</Td>
                           <Td>
-                            {item.dimensi_nama ? (
+                            {item.level_nama ? (
                               <span style={{ background: '#e2e5ea', color: '#374151', padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500 }}>
-                                {item.dimensi_nama}
+                                {item.level_nama}
                               </span>
                             ) : '-'}
                           </Td>
@@ -367,17 +406,6 @@ export default function PenggunaanAset() {
           ))}
         </div>
       )}
-
-      <ConfirmDialog
-        open={!!confirmTarget}
-        icon={<TrashIcon size={22} />}
-        tone="danger"
-        title="Hapus catatan penggunaan ini?"
-        description={`"${confirmTarget?.nama}" akan dihapus dan tidak akan muncul lagi di daftar aktif. Data tetap tersimpan di sistem demi menjaga keakuratan laporan, namun tidak dapat dipulihkan lagi melalui halaman ini.`}
-        onCancel={() => setConfirmTarget(null)}
-        onConfirm={handleDelete}
-        confirmLabel="Ya, Hapus"
-      />
     </div>
   );
 }

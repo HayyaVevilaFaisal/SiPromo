@@ -23,7 +23,7 @@ describe('uploadBonPembelian (white box)', () => {
   });
 
   test('cabang 2: pembelian tidak ditemukan -> 404', async () => {
-    pool.query.mockResolvedValueOnce({ rows: [] });
+    pool.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
     const { req, res, next } = createReqRes({
       params: { id: '999' },
       file: { originalname: 'bon.pdf', filename: '123-bon.pdf' },

@@ -1,32 +1,85 @@
-const pool = require('../config/db');
+// Mengambil service Notifikasi.
+const notifikasiService =
+  require('../services/notifikasiService');
 
-// FR-09, UC-05 - Lihat Notifikasi Stok
-// Catatan revisi final: tabel pesan_notifikasi sekarang punya kolom aset_id (FK ke aset),
-// jadi notifikasi bisa langsung menunjukkan nama aset yang memicunya.
 
-async function getNotifikasi(req, res, next) {
+// Controller menangani request dan response HTTP
+// untuk fitur notifikasi stok.
+
+
+// Mengambil seluruh notifikasi yang belum selesai.
+async function getNotifikasi(
+  req,
+  res,
+  next
+) {
+
   try {
-    const { rows } = await pool.query(
-      `SELECT n.*, a.nama AS aset_nama, a.stok, a.threshold_qty
-       FROM pesan_notifikasi n
-       JOIN aset a ON a.aset_id = n.aset_id
-       WHERE n.is_resolved = false AND a.is_active = true
-       ORDER BY n.created_at DESC`
-    );
-    res.json(rows);
-  } catch (err) { next(err); }
+
+    // Meminta service mengambil notifikasi
+    // yang masih memiliki is_resolved = false.
+    const notifikasi =
+      await notifikasiService.getNotifikasi();
+
+
+    // Mengirim data notifikasi kepada frontend.
+    res.json(notifikasi);
+
+  } catch (err) {
+
+    // Meneruskan error ke middleware error handler.
+    next(err);
+  }
 }
 
-async function resolveNotifikasi(req, res, next) {
+
+// Menandai notifikasi sebagai selesai.
+async function resolveNotifikasi(
+  req,
+  res,
+  next
+) {
+
   try {
+
+    // Mengambil ID notifikasi dari parameter URL.
     const { id } = req.params;
-    const { rows } = await pool.query(
-      'UPDATE pesan_notifikasi SET is_resolved = true WHERE pesan_notifikasi_id = $1 RETURNING *',
-      [id]
-    );
-    if (!rows[0]) return res.status(404).json({ message: 'Notifikasi tidak ditemukan' });
-    res.json(rows[0]);
-  } catch (err) { next(err); }
+
+
+    // Meminta service mengubah
+    // is_resolved menjadi true.
+    const notifikasi =
+      await notifikasiService.resolveNotifikasi(id);
+
+
+    // Jika notifikasi tidak ditemukan.
+    if (!notifikasi) {
+
+      return res.status(404).json({
+        message:
+          'Notifikasi tidak ditemukan',
+      });
+    }
+
+
+    // Mengirim informasi bahwa
+    // notifikasi telah diselesaikan.
+    res.json({
+      message:
+        'Notifikasi berhasil diselesaikan',
+      data: notifikasi,
+    });
+
+  } catch (err) {
+
+    // Meneruskan error ke middleware error handler.
+    next(err);
+  }
 }
 
-module.exports = { getNotifikasi, resolveNotifikasi };
+
+// Mengekspor seluruh controller.
+module.exports = {
+  getNotifikasi,
+  resolveNotifikasi,
+};

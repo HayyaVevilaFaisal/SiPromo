@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axiosClient from '../../api/axiosClient';
-import ConfirmDialog from '../../components/common/ConfirmDialog';
+// import ConfirmDialog from '../../components/common/ConfirmDialog';
 import PageHeader from '../../components/common/PageHeader';
 import IconButton from '../../components/common/IconButton';
 import { Th, Td } from '../../components/common/DataTable';
@@ -8,6 +9,7 @@ import { SearchIcon, PlusIcon, EditIcon, TrashIcon } from '../../components/comm
 import VendorForm from './VendorForm';
 
 const emptyForm = { nama: '', alamat: '', nomor_handphone: '', email: '' };
+const MAX_ASET_PREVIEW = 3;
 
 function isUrl(value) {
   return /^https?:\/\//i.test(value || '');
@@ -15,19 +17,26 @@ function isUrl(value) {
 
 // FR-05, UC-03 - Kelola Data Vendor
 export default function Vendor() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const dariPembelian = location.state?.dariPembelian;
+  const dariAset = location.state?.dariAset;
   const [data, setData] = useState([]);
+  const [expandedVendors, setExpandedVendors] = useState({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('aktif');
-  const [view, setView] = useState('list'); // 'list' | 'form'
+  // const [status, setStatus] = useState('aktif');
+  const [view, setView] = useState(dariPembelian || dariAset ? 'form' : 'list'); // 'list' | 'form'
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [confirmTarget, setConfirmTarget] = useState(null);
+  // const [confirmTarget, setConfirmTarget] = useState(null);
+  const [error, setError] = useState('');
 
   async function fetchData(params = {}) {
     setLoading(true);
-    const res = await axiosClient.get('/vendor', { params: { search, status, ...params } });
+//     const res = await axiosClient.get('/vendor', { params: { search, status, ...params } });
+    const res = await axiosClient.get('/vendor', { params: { search, ...params } });
     setData(res.data);
     setLoading(false);
   }
@@ -35,6 +44,7 @@ export default function Vendor() {
   useEffect(() => { fetchData(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function openCreateForm() {
+    setError('');
     setEditing(null);
     setForm(emptyForm);
     setView('form');
@@ -52,37 +62,76 @@ export default function Vendor() {
   }
 
   function closeForm() {
+    if (dariAset) {
+      navigate('/aset', { replace: true, state: { kembaliDariVendor: dariAset } });
+      return;
+    }
+    if (dariPembelian) {
+      navigate('/pembelian-aset', {
+        replace: true,
+        state: { kembaliDariVendor: dariPembelian },
+      });
+      return;
+    }
     setView('list');
     setEditing(null);
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
+    setError('');
     setSaving(true);
     try {
       if (editing) {
         await axiosClient.put(`/vendor/${editing.vendor_id}`, form);
       } else {
-        await axiosClient.post('/vendor', form);
+        const res = await axiosClient.post('/vendor', form);
+        if (dariAset) {
+          navigate('/aset', {
+            replace: true,
+            state: { kembaliDariVendor: {
+              ...dariAset,
+              form: { ...dariAset.form, vendor_id: String(res.data.vendor_id) },
+            } },
+          });
+          return;
+        }
+        if (dariPembelian) {
+          navigate('/pembelian-aset', {
+            replace: true,
+            state: {
+              kembaliDariVendor: {
+                ...dariPembelian,
+                form: {
+                  ...dariPembelian.form,
+                  vendor_id: String(res.data.vendor_id),
+                },
+              },
+            },
+          });
+          return;
+        }
       }
       closeForm();
       fetchData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal menyimpan vendor. Silakan coba lagi.');
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleDelete() {
-    if (!confirmTarget) return;
-    await axiosClient.patch(`/vendor/${confirmTarget.vendor_id}/arsip`);
-    setConfirmTarget(null);
-    fetchData();
-  }
+//   async function handleDelete() {
+//     if (!confirmTarget) return;
+//     await axiosClient.delete(`/vendor/${confirmTarget.vendor_id}`);
+//     setConfirmTarget(null);
+//     fetchData();
+//   }
 
-  function handleStatusChange(value) {
-    setStatus(value);
-    fetchData({ status: value });
-  }
+//   function handleStatusChange(value) {
+//     setStatus(value);
+//     fetchData({ status: value });
+//   }
 
   if (view === 'form') {
     return (
@@ -91,6 +140,7 @@ export default function Vendor() {
         form={form}
         setForm={setForm}
         saving={saving}
+        error={error}
         onCancel={closeForm}
         onSubmit={handleSubmit}
       />
@@ -104,8 +154,10 @@ export default function Vendor() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <div style={{ position: 'relative', flex: 1, maxWidth: 360 }}>
           <SearchIcon style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+          {/* Kode lama: title="Cari nama, alamat/tautan toko, nomor HP, email, atau status vendor" */}
           <input
             placeholder="Cari vendor..."
+            title="Cari nama vendor, alamat/tautan toko, nomor HP, email, atau aset dibeli"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && fetchData()}
@@ -114,6 +166,7 @@ export default function Vendor() {
         </div>
 
         <div style={{ display: 'flex', gap: 10 }}>
+{/* Kode lama, dipertahankan untuk penggunaan kembali:
           <select
             value={status}
             onChange={(e) => handleStatusChange(e.target.value)}
@@ -124,8 +177,9 @@ export default function Vendor() {
           >
             <option value="">Semua Status</option>
             <option value="aktif">Aktif</option>
-            <option value="arsip">Terhapus</option>
+            <option value="terhapus">Terhapus</option>
           </select>
+*/}
 
           <button
             type="button"
@@ -149,14 +203,17 @@ export default function Vendor() {
                 <Th>Alamat</Th>
                 <Th>No.HP</Th>
                 <Th>Email</Th>
+                <Th><span title="Aset dari seluruh riwayat pembelian berstatus Lunas">Aset Dibeli</span></Th>
                 <Th>Aksi</Th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Memuat data...</td></tr>
+                /* Kode lama: <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Memuat data...</td></tr> */
+                <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Memuat data...</td></tr>
               ) : data.length === 0 ? (
-                <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Belum ada data.</td></tr>
+                /* Kode lama: <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Belum ada data.</td></tr> */
+                <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Belum ada data.</td></tr>
               ) : (
                 data.map((row) => (
                   <tr key={row.vendor_id}>
@@ -170,8 +227,63 @@ export default function Vendor() {
                     </Td>
                     <Td>{row.nomor_handphone || '-'}</Td>
                     <Td>{row.email || '-'}</Td>
+                    {/* Kode lama: semua aset langsung ditampilkan.
                     <Td>
-                      {row.is_active ? (
+                      {row.aset_dibeli?.length ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, minWidth: 160, maxWidth: 360 }}>
+                          {row.aset_dibeli.map((aset) => (
+                            <span key={aset.aset_id} style={{
+                              display: 'inline-block', padding: '3px 8px', borderRadius: 8,
+                              background: '#e8efff', color: '#155dfc', fontSize: 12,
+                              fontWeight: 600, overflowWrap: 'anywhere', maxWidth: '100%',
+                            }}>
+                              {aset.nama}
+                            </span>
+                          ))}
+                        </div>
+                      ) : '-'}
+                    </Td>
+                    */}
+                    <Td>
+                      {row.aset_dibeli?.length ? (
+                        <div id={`vendor-aset-${row.vendor_id}`} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, minWidth: 160, maxWidth: 360 }}>
+                          {row.aset_dibeli.slice(0, expandedVendors[row.vendor_id] ? undefined : MAX_ASET_PREVIEW).map((aset) => (
+                            <span key={aset.aset_id} style={{
+                              display: 'inline-block', padding: '3px 8px', borderRadius: 8,
+                              background: '#e8efff', color: '#155dfc', fontSize: 12,
+                              fontWeight: 600, overflowWrap: 'anywhere', maxWidth: '100%',
+                            }}>
+                              {aset.nama}
+                            </span>
+                          ))}
+                          {row.aset_dibeli.length > MAX_ASET_PREVIEW && (
+                            <button
+                              type="button"
+                              aria-expanded={Boolean(expandedVendors[row.vendor_id])}
+                              aria-controls={`vendor-aset-${row.vendor_id}`}
+                              aria-label={expandedVendors[row.vendor_id]
+                                ? `Tampilkan lebih sedikit aset ${row.nama}`
+                                : `+${row.aset_dibeli.length - MAX_ASET_PREVIEW} lainnya untuk ${row.nama}`}
+                              onClick={() => setExpandedVendors(current => ({
+                                ...current, [row.vendor_id]: !current[row.vendor_id],
+                              }))}
+                              style={{
+                                padding: '3px 4px', border: 0, background: 'transparent',
+                                color: '#155dfc', fontSize: 12, fontWeight: 600,
+                                cursor: 'pointer', textDecoration: 'underline',
+                              }}
+                            >
+                              {expandedVendors[row.vendor_id]
+                                ? 'Tampilkan lebih sedikit'
+                                : `+${row.aset_dibeli.length - MAX_ASET_PREVIEW} lainnya`}
+                            </button>
+                          )}
+                        </div>
+                      ) : '-'}
+                    </Td>
+                    <Td>
+                      {/* Kode lama, dipertahankan untuk penggunaan kembali:
+{row.is_active ? (
                         <div style={{ display: 'flex', gap: 8 }}>
                           <IconButton title="Ubah" bg="#eef2ff" color="#4338ca" onClick={() => openEditForm(row)}>
                             <EditIcon />
@@ -183,6 +295,10 @@ export default function Vendor() {
                       ) : (
                         <span style={{ fontSize: 12, color: '#9ca3af' }}>Terhapus</span>
                       )}
+*/}
+                      <IconButton title="Ubah" bg="#eef2ff" color="#4338ca" onClick={() => openEditForm(row)}>
+                        <EditIcon />
+                      </IconButton>
                     </Td>
                   </tr>
                 ))
@@ -192,6 +308,7 @@ export default function Vendor() {
         </div>
       </div>
 
+{/* Kode lama, dipertahankan untuk penggunaan kembali:
       <ConfirmDialog
         open={!!confirmTarget}
         icon={<TrashIcon size={22} />}
@@ -202,6 +319,7 @@ export default function Vendor() {
         onConfirm={handleDelete}
         confirmLabel="Ya, Hapus"
       />
+*/}
     </div>
   );
 }

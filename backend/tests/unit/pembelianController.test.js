@@ -3,7 +3,7 @@
 //   1. Validasi field wajib kosong -> 400, tidak pernah BEGIN transaksi
 //   2. Status pembelian di luar STATUS_PEMBELIAN -> 400
 //   3. Aset di daftar_aset tidak ditemukan di tengah transaksi -> ROLLBACK + next(err)
-//   4. Jalur sukses -> unit_price SELALU diambil dari aset.harga (bukan dari body request),
+//   4. Jalur sukses -> unit_price mengikuti input pengguna,
 //      stok bertambah, transaksi COMMIT, response 201
 
 jest.mock('../../src/config/db', () => ({ connect: jest.fn(), query: jest.fn() }));
@@ -26,7 +26,7 @@ const validBody = {
   tanggal: '2025-05-15',
   status: 'Lunas',
   catatan: '',
-  daftar_aset: [{ aset_id: 5, qty_in: 10, unit_price: 999999 }], // unit_price di body harus DIABAIKAN
+  daftar_aset: [{ aset_id: 5, qty_in: 10, unit_price: 999999 }], // harga input pengguna
 };
 
 describe('createPembelian (white box - branch coverage)', () => {
@@ -40,7 +40,7 @@ describe('createPembelian (white box - branch coverage)', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ message: 'Data pembelian dan minimal satu aset wajib diisi' });
     expect(client.query).not.toHaveBeenCalled();
-    expect(client.release).toHaveBeenCalled(); // finally tetap melepas koneksi
+    expect(client.release).not.toHaveBeenCalled(); // validasi sebelum membuka koneksi
   });
 
   test('cabang 1b: daftar_aset kosong -> 400', async () => {
@@ -86,7 +86,7 @@ describe('createPembelian (white box - branch coverage)', () => {
     expect(client.release).toHaveBeenCalled();
   });
 
-  test('cabang 4: jalur sukses -> unit_price diambil dari aset.harga (bukan dari body), stok bertambah, 201', async () => {
+  test('cabang 4: jalur sukses -> unit_price mengikuti input pengguna, stok bertambah, 201', async () => {
     const asetRow = { aset_id: 5, nama: 'Pulpen Informatika', harga: '4500.00', stok: 200, threshold_qty: 50 };
     const updatedAsetRow = { ...asetRow, stok: 210 };
     const client = createMockClient([
@@ -111,10 +111,10 @@ describe('createPembelian (white box - branch coverage)', () => {
     });
 
     // Panggilan ke-5 (index 4) adalah INSERT detail_pembelian - parameter ke-4 (unit_price)
-    // harus persis aset.harga (4500.00), BUKAN 999999 yang dikirim klien di body.
+    // mengikuti harga satuan 999999 yang dikirim pengguna.
     const detailPembelianCall = client.query.mock.calls[4];
     expect(detailPembelianCall[0]).toMatch(/INSERT INTO detail_pembelian/);
-    expect(detailPembelianCall[1]).toEqual([9, 5, 10, '4500.00']);
+    expect(detailPembelianCall[1]).toEqual([9, 5, 10, 999999]);
 
     expect(client.query).toHaveBeenCalledWith('COMMIT');
     expect(client.query).not.toHaveBeenCalledWith('ROLLBACK');

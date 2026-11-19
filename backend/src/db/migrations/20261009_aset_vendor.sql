@@ -1,0 +1,4 @@
+-- Relasi langsung aset-vendor dinonaktifkan; vendor melalui pembelian.
+-- -- Vendor yang dipilih saat membuat aset bersifat opsional.
+-- ALTER TABLE aset ADD COLUMN IF NOT EXISTS vendor_id INTEGER NULL
+--     REFERENCES vendor(vendor_id) ON DELETE RESTRICT;

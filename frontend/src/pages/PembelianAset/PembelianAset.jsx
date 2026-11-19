@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axiosClient from '../../api/axiosClient';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import PageHeader from '../../components/common/PageHeader';
@@ -11,9 +12,18 @@ import PembelianAsetForm from './PembelianAsetForm';
 
 const emptyForm = {
   vendor_id: '', tanggal: '', status: 'Belum Bayar', catatan: '',
-  daftar_aset: [{ aset_id: '', qty_in: '' }],
+  daftar_aset: [{ aset_id: '', qty_in: '', unit_price: '' }],
   bonFile: null, nama_file: null, url_file: null, fileError: '',
 };
+
+function assetSignature(items) {
+  const totals = new Map();
+  for (const item of items) {
+    const id = Number(item.aset_id);
+    totals.set(id, (totals.get(id) || 0) + Number(item.qty_in));
+  }
+  return JSON.stringify([...totals].sort(([a], [b]) => a - b));
+}
 
 const STATUS_PEMBELIAN_OPTIONS = ['Belum Bayar', 'DP', 'Lunas'];
 
@@ -66,6 +76,11 @@ export function statusBadgeStyle(status) {
 
 // FR-13, FR-14, FR-15, FR-16, FR-17, UC-07 - Kelola Pencatatan Pembelian Aset
 export default function PembelianAset() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const kembaliDariVendor = location.state?.kembaliDariVendor;
+  const kembaliDariAset = location.state?.kembaliDariAset;
+  const draft = kembaliDariAset ?? kembaliDariVendor;
   const [data, setData] = useState([]);
   const [vendorList, setVendorList] = useState([]);
   const [tahunAjaranList, setTahunAjaranList] = useState([]);
@@ -73,19 +88,26 @@ export default function PembelianAset() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showFilter, setShowFilter] = useState(false);
-  const [filters, setFilters] = useState({ tahunAjaranId: '', statusPembelian: '', status: 'aktif' });
-  const [view, setView] = useState('list'); // 'list' | 'form'
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState(emptyForm);
+  const [filters, setFilters] = useState({ tahunAjaranId: '', statusPembelian: '' });
+  const [activeFilters, setActiveFilters] = useState({ tahunAjaranId: '', statusPembelian: '' });
+  const activeFilterCount = Object.values(activeFilters).filter(Boolean).length;
+  const activeTahunAjaran = tahunAjaranList.find((ta) => String(ta.tahun_ajaran_id) === activeFilters.tahunAjaranId);
+//   const [view, setView] = useState(kembaliDariVendor ? 'form' : 'list'); // 'list' | 'form'
+  const [view, setView] = useState(draft ? 'form' : 'list'); // 'list' | 'form'
+//   const [editing, setEditing] = useState(kembaliDariVendor?.editing ?? null);
+  const [editing, setEditing] = useState(draft?.editing ?? null);
+//   const [form, setForm] = useState(kembaliDariVendor?.form ?? emptyForm);
+  const [form, setForm] = useState(draft?.form ?? emptyForm);
   const [saving, setSaving] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null);
+  const [pendingPurchase, setPendingPurchase] = useState(null);
   const [error, setError] = useState('');
 
   async function fetchData(params = {}) {
     setLoading(true);
     setError('');
     try {
-      const res = await axiosClient.get('/pembelian-aset', { params: { search, ...filters, ...params } });
+      const res = await axiosClient.get('/pembelian-aset', { params: { search, ...activeFilters, ...params } });
       setData(res.data);
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal memuat data pembelian aset. Pastikan server backend aktif.');
@@ -96,12 +118,24 @@ export default function PembelianAset() {
 
   useEffect(() => {
     fetchData();
-    axiosClient.get('/vendor', { params: { status: 'aktif' } }).then((res) => setVendorList(res.data)).catch(() => {});
-    axiosClient.get('/tahun-ajaran', { params: { status: 'aktif' } }).then((res) => setTahunAjaranList(res.data)).catch(() => {});
-    axiosClient.get('/aset', { params: { status: 'aktif' } }).then((res) => setAsetList(res.data)).catch(() => {});
+//     axiosClient.get('/vendor', { params: { status: 'aktif' } }).then((res) => setVendorList(res.data)).catch(() => {});
+    axiosClient.get('/vendor').then((res) => setVendorList(res.data)).catch(() => {});
+//     axiosClient.get('/tahun-ajaran', { params: { status: 'aktif' } }).then((res) => setTahunAjaranList(res.data)).catch(() => {});
+    axiosClient.get('/tahun-ajaran').then((res) => setTahunAjaranList(res.data)).catch(() => {});
+//     axiosClient.get('/aset', { params: { status: 'aktif' } }).then((res) => setAsetList(res.data)).catch(() => {});
+    axiosClient.get('/aset').then((res) => setAsetList(res.data)).catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function openCreateForm() {
+  async function openCreateForm() {
+    setError('');
+    try {
+//       const { data: assets } = await axiosClient.get('/aset', { params: { status: 'aktif' } });
+      const { data: assets } = await axiosClient.get('/aset');
+      setAsetList(assets);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal mengambil harga aset terbaru.');
+      return;
+    }
     setEditing(null);
     setForm(emptyForm);
     setError('');
@@ -109,6 +143,10 @@ export default function PembelianAset() {
   }
 
   function openEditForm(row) {
+    if (!row.can_edit) {
+      setError('Pencatatan hanya dapat diedit pada tahun ajaran terbaru yang sudah berjalan.');
+      return;
+    }
     setEditing(row);
     setForm({
       vendor_id: row.vendor_id ?? '',
@@ -116,8 +154,8 @@ export default function PembelianAset() {
       status: row.status,
       catatan: row.catatan ?? '',
       daftar_aset: row.daftar_aset.length > 0
-        ? row.daftar_aset.map((item) => ({ aset_id: item.aset_id, qty_in: item.qty_in }))
-        : [{ aset_id: '', qty_in: '' }],
+        ? row.daftar_aset.map((item) => ({ aset_id: item.aset_id, qty_in: item.qty_in, unit_price: item.unit_price }))
+        : [{ aset_id: '', qty_in: '', unit_price: '' }],
       bonFile: null,
       nama_file: row.nama_file ?? null,
       url_file: row.url_file ?? null,
@@ -128,17 +166,31 @@ export default function PembelianAset() {
   }
 
   function closeForm() {
+    setPendingPurchase(null);
     setView('list');
     setEditing(null);
   }
 
+  function openTambahVendor() {
+    navigate('/vendor', { state: { dariPembelian: { form, editing } } });
+  }
+
+  function openTambahAset() {
+    navigate('/aset', { state: { dariPembelian: { form, editing } } });
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving || pendingPurchase) return;
     setError('');
 
+    if (form.daftar_aset.some(row => row.aset_id && (row.unit_price === '' || row.unit_price == null || !Number.isFinite(Number(row.unit_price)) || Number(row.unit_price) < 0 || Number(row.unit_price) > 9999999999.99))) {
+      setError('Isi harga satuan setiap aset dengan nilai minimal 0.');
+      return;
+    }
     const daftar_aset = form.daftar_aset
       .filter((row) => row.aset_id && row.qty_in)
-      .map((row) => ({ aset_id: Number(row.aset_id), qty_in: Number(row.qty_in) }));
+      .map((row) => ({ aset_id: Number(row.aset_id), qty_in: Number(row.qty_in), unit_price: Number(row.unit_price) }));
 
     if (daftar_aset.length === 0) {
       setError('Tambahkan minimal satu aset dengan jumlah yang valid.');
@@ -161,22 +213,54 @@ export default function PembelianAset() {
         catatan: form.catatan,
         daftar_aset,
       };
-      let pembelianId = editing?.pembelian_id;
-      if (editing) {
-        await axiosClient.put(`/pembelian-aset/${pembelianId}`, payload);
-      } else {
-        const res = await axiosClient.post('/pembelian-aset', payload);
-        pembelianId = res.data.pembelian.pembelian_id;
+      if (!editing) {
+        const existing = await axiosClient.get('/pembelian-aset');
+        const signature = assetSignature(daftar_aset);
+        const duplicate = existing.data.some((row) =>
+          Number(row.vendor_id) === payload.vendor_id
+          && toDateInputValue(row.tanggal) === payload.tanggal
+          && assetSignature(row.daftar_aset) === signature
+        );
+        if (duplicate) {
+          setPendingPurchase({ payload, bonFile: form.bonFile });
+          return;
+        }
       }
+      await savePurchase(payload, form.bonFile);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal menyimpan pencatatan pembelian.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
-      if (form.bonFile) {
-        const fd = new FormData();
-        fd.append('bon', form.bonFile);
-        await axiosClient.patch(`/pembelian-aset/${pembelianId}/bon`, fd);
-      }
+  async function savePurchase(payload, bonFile) {
+    let pembelianId = editing?.pembelian_id;
+    if (editing) {
+      await axiosClient.put(`/pembelian-aset/${pembelianId}`, payload);
+    } else {
+      const res = await axiosClient.post('/pembelian-aset', payload);
+      pembelianId = res.data.pembelian.pembelian_id;
+    }
+    if (bonFile) {
+      const fd = new FormData();
+      fd.append('bon', bonFile);
+      await axiosClient.patch(`/pembelian-aset/${pembelianId}/bon`, fd);
+    }
+    closeForm();
+    fetchData();
+//     axiosClient.get('/aset', { params: { status: 'aktif' } }).then(res => setAsetList(res.data)).catch(() => {});
+    axiosClient.get('/aset').then(res => setAsetList(res.data)).catch(() => {});
+  }
 
-      closeForm();
-      fetchData();
+  async function confirmDuplicate() {
+    if (saving || !pendingPurchase) return;
+    const { payload, bonFile } = pendingPurchase;
+    setPendingPurchase(null);
+    setSaving(true);
+    setError('');
+    try {
+      await savePurchase(payload, bonFile);
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal menyimpan pencatatan pembelian.');
     } finally {
@@ -188,7 +272,7 @@ export default function PembelianAset() {
     if (!confirmTarget) return;
     setError('');
     try {
-      await axiosClient.patch(`/pembelian-aset/${confirmTarget.pembelian_id}/arsip`);
+      await axiosClient.delete(`/pembelian-aset/${confirmTarget.pembelian_id}`);
       setConfirmTarget(null);
       fetchData();
     } catch (err) {
@@ -198,24 +282,29 @@ export default function PembelianAset() {
   }
 
   function applyFilters() {
-    fetchData();
+    setActiveFilters({ ...filters });
+    fetchData(filters);
     setShowFilter(false);
   }
 
   function resetFilters() {
-    const cleared = { tahunAjaranId: '', statusPembelian: '', status: 'aktif' };
+    const cleared = { tahunAjaranId: '', statusPembelian: '' };
     setFilters(cleared);
+    setActiveFilters(cleared);
     fetchData(cleared);
     setShowFilter(false);
   }
 
   if (view === 'form') {
     return (
+      <>
       <PembelianAsetForm
         editing={editing}
         form={form}
         setForm={setForm}
         vendorList={vendorList}
+        onCreateVendor={openTambahVendor}
+        onCreateAset={openTambahAset}
         asetList={asetList}
         tahunAjaran={findTahunAjaran(form.tanggal, tahunAjaranList)}
         saving={saving}
@@ -223,6 +312,15 @@ export default function PembelianAset() {
         onCancel={closeForm}
         onSubmit={handleSubmit}
       />
+      <ConfirmDialog
+        open={Boolean(pendingPurchase)}
+        title="Konfirmasi Pencatatan"
+        description="Pencatatan dengan vendor, tanggal, dan daftar aset yang sama sudah pernah dibuat. Apakah Anda yakin ingin menyimpan pencatatan ini?"
+        confirmLabel="Ya, Simpan"
+        onCancel={() => setPendingPurchase(null)}
+        onConfirm={confirmDuplicate}
+      />
+      </>
     );
   }
 
@@ -244,7 +342,7 @@ export default function PembelianAset() {
         <div style={{ position: 'relative', flex: 1, maxWidth: 360 }}>
           <SearchIcon style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
           <input
-            placeholder="Cari catatan pembelian..."
+            placeholder="Cari vendor atau aset"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && fetchData()}
@@ -256,13 +354,16 @@ export default function PembelianAset() {
           <div style={{ position: 'relative' }}>
             <button
               type="button"
-              onClick={() => setShowFilter((v) => !v)}
+              onClick={() => {
+                if (!showFilter) setFilters({ ...activeFilters });
+                setShowFilter((v) => !v);
+              }}
               style={{
-                display: 'flex', alignItems: 'center', gap: 6, background: '#fff', color: '#374151',
-                border: '1px solid #d1d5db', padding: '10px 16px', borderRadius: 10, fontSize: 14, fontWeight: 500,
+                display: 'flex', alignItems: 'center', gap: 6, background: activeFilterCount ? '#eff6ff' : '#fff', color: activeFilterCount ? '#155dfc' : '#374151',
+                border: `1px solid ${activeFilterCount ? '#93c5fd' : '#d1d5db'}`, padding: '10px 16px', borderRadius: 10, fontSize: 14, fontWeight: 500,
               }}
             >
-              <FilterIcon /> Filter
+              <FilterIcon /> Filter{activeFilterCount > 0 && ` (${activeFilterCount})`}
             </button>
             {showFilter && (
               <div style={{
@@ -296,11 +397,12 @@ export default function PembelianAset() {
                 <div style={{ padding: '18px 20px' }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#111827', marginBottom: 8 }}>TAHUN AJARAN</div>
                   <select
+                    aria-label="Tahun Ajaran"
                     value={filters.tahunAjaranId}
                     onChange={(e) => setFilters((f) => ({ ...f, tahunAjaranId: e.target.value }))}
                     style={{
                       width: '100%', marginBottom: 20, padding: '10px 12px', borderRadius: 10,
-                      border: '1px solid #d1d5db', fontSize: 14, color: filters.tahunAjaranId ? '#111827' : '#9ca3af',
+                      border: '1px solid #d1d5db', fontSize: 14, fontWeight: 500, background: '#f3f4f6', color: '#4b5563',
                     }}
                   >
                     <option value="">Semua Tahun Ajaran</option>
@@ -320,28 +422,6 @@ export default function PembelianAset() {
                           padding: '6px 14px', borderRadius: 999, fontSize: 13, fontWeight: 500,
                           background: filters.statusPembelian === opt.value ? '#eff6ff' : '#f3f4f6',
                           color: filters.statusPembelian === opt.value ? '#155dfc' : '#4b5563',
-                        }}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', marginBottom: 10 }}>Status Aktif</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {[
-                      { value: 'aktif', label: 'Aktif' },
-                      { value: 'arsip', label: 'Terhapus' },
-                      { value: '', label: 'Semua' },
-                    ].map((opt) => (
-                      <button
-                        key={opt.value || 'semua-status'}
-                        type="button"
-                        onClick={() => setFilters((f) => ({ ...f, status: opt.value }))}
-                        style={{
-                          padding: '6px 14px', borderRadius: 999, fontSize: 13, fontWeight: 500,
-                          background: filters.status === opt.value ? '#eff6ff' : '#f3f4f6',
-                          color: filters.status === opt.value ? '#155dfc' : '#4b5563',
                         }}
                       >
                         {opt.label}
@@ -386,6 +466,25 @@ export default function PembelianAset() {
           </button>
         </div>
       </div>
+
+      {activeFilterCount > 0 && (
+        <div aria-label="Filter aktif" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16, fontSize: 13 }}>
+          <span style={{ color: '#6b7280' }}>Filter aktif:</span>
+          {activeFilters.tahunAjaranId && (
+            <span style={{ background: '#eff6ff', color: '#155dfc', border: '1px solid #bfdbfe', borderRadius: 999, padding: '6px 12px' }}>
+              Tahun Ajaran: {activeTahunAjaran ? `${activeTahunAjaran.semester} ${activeTahunAjaran.tahun}` : activeFilters.tahunAjaranId}
+            </span>
+          )}
+          {activeFilters.statusPembelian && (
+            <span style={{ background: '#eff6ff', color: '#155dfc', border: '1px solid #bfdbfe', borderRadius: 999, padding: '6px 12px' }}>
+              Status Pembelian: {activeFilters.statusPembelian}
+            </span>
+          )}
+          <button type="button" onClick={resetFilters} style={{ background: 'transparent', color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4, padding: '6px 8px' }}>
+            <ResetIcon /> Hapus filter
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', padding: 24, textAlign: 'center', color: '#6b7280' }}>
@@ -449,21 +548,27 @@ export default function PembelianAset() {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 12, color: '#6b7280' }}>Total Nilai</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#155dfc' }}>{formatRupiah(row.total_nilai)}</div>
-                  </div>
-                  {row.is_active ? (
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <IconButton title="Ubah" bg="#eef2ff" color="#4338ca" onClick={() => openEditForm(row)}>
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton title="Hapus" bg="#fee2e2" color="#dc2626" onClick={() => setConfirmTarget(row)}>
-                        <TrashIcon />
-                      </IconButton>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>
+                      Total Nilai
                     </div>
-                  ) : (
-                    <span style={{ fontSize: 12, color: '#9ca3af' }}>Terhapus</span>
-                  )}
+
+                    <div style={{
+                      fontSize: 15,
+                      fontWeight: 700,
+                      color: '#155dfc'
+                    }}>
+                      {formatRupiah(row.total_nilai)}
+                    </div>
+                  </div>
+
+                  {row.can_edit && <IconButton
+                    title="Ubah"
+                    bg="#eef2ff"
+                    color="#4338ca"
+                    onClick={() => openEditForm(row)}
+                  >
+                    <EditIcon />
+                  </IconButton>}
                 </div>
               </div>
 
@@ -473,7 +578,7 @@ export default function PembelianAset() {
                     <tr style={{ background: '#f9fafb' }}>
                       <Th>#</Th>
                       <Th>Nama Aset</Th>
-                      <Th>Dimensi</Th>
+                      <Th>Level</Th>
                       <Th>Qty Pembelian</Th>
                       <Th>Harga Satuan</Th>
                       <Th>Total Harga</Th>
@@ -488,9 +593,9 @@ export default function PembelianAset() {
                           <Td>{idx + 1}</Td>
                           <Td>{item.aset_nama}</Td>
                           <Td>
-                            {item.dimensi_nama ? (
+                            {item.level_nama ? (
                               <span style={{ background: '#e2e5ea', color: '#374151', padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500 }}>
-                                {item.dimensi_nama}
+                                {item.level_nama}
                               </span>
                             ) : '-'}
                           </Td>

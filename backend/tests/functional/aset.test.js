@@ -1,3 +1,4 @@
+jest.mock('../../src/middlewares/authMiddleware', () => require('../helpers/businessAuth'));
 // Functional test - endpoint /api/aset (FR-03, FR-04, UC-01).
 
 jest.mock('../../src/config/db', () => ({ query: jest.fn() }));
@@ -70,5 +71,28 @@ describe('/api/aset', () => {
     const res = await request(app).patch('/api/aset/1/pulihkan').set('Authorization', authHeader());
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ message: 'Aset berhasil dipulihkan', data: restored });
+  });
+});
+
+ describe('filter status stok /api/aset', () => {
+  test.each([
+    ['kritis', 's.stok < s.threshold_qty'],
+    ['aman', 's.stok >= s.threshold_qty'],
+  ])('status %s digabung dengan filter lain', async (status, condition) => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app).get('/api/aset')
+      .query({ status, search: 'Tas', level: '2', lokasi: '3', hargaMin: '1000', hargaMax: '5000' })
+      .set('Authorization', authHeader());
+    expect(res.status).toBe(200);
+    const [sql, values] = pool.query.mock.calls[0];
+    expect(sql).toContain(condition);
+    expect(sql).toContain('s.level_aset_id = $2');
+    expect(sql).toContain('s.lokasi_penyimpanan_id = $3');
+    expect(values).toEqual(['%Tas%', '2', '3', '1000', '5000']);
+  });
+  test('semua status tidak membatasi stok', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    await request(app).get('/api/aset').query({ status: '' }).set('Authorization', authHeader());
+    expect(pool.query.mock.calls[0][0]).not.toContain('WHERE');
   });
 });

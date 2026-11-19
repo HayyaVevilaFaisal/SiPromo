@@ -1,26 +1,20 @@
+//konfigurasi komunikasi frontend dan backend; mengirimkan js ke server 
 import axios from 'axios';
 
-const axiosClient = axios.create({
-  baseURL: '/api',
-});
+//instace axios untuk untuk API
+const axiosClient = axios.create({ baseURL: '/api', withCredentials: true });
 
-axiosClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
+//interceptor untuk menangani error 401 (Unauthorized) dari backend
 axiosClient.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    const isLoginRequest = err.config?.url?.includes('/auth/login');
-    if (err.response?.status === 401 && !isLoginRequest) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+  res => res,
+  err => {
+    // /me digunakan juga untuk mengecek sesi saat halaman login dibuka.
+    // jangan redirect pemeriksaan itu agar tidak membuat loop reload.
+    // jika error 401 terjadi pada request selain /me, redirect ke halaman login.
+    if (err.response?.status === 401 && err.config?.url !== '/auth/me') {
+      window.location.assign('/login');
     }
     return Promise.reject(err);
   }
 );
-
 export default axiosClient;

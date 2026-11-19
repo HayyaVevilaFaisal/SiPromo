@@ -1,3 +1,4 @@
+jest.mock('../../src/middlewares/authMiddleware', () => require('../helpers/businessAuth'));
 // Functional test - endpoint /api/notifikasi (FR-09, UC-05).
 
 jest.mock('../../src/config/db', () => ({ query: jest.fn() }));

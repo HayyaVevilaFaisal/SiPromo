@@ -1,7 +1,9 @@
+import FormIcon from '../../components/common/FormIcon';
+import { LocationIcon } from '../../components/common/icons';
 import PageHeader from '../../components/common/PageHeader';
 
 // Form Tambah/Ubah Lokasi Penyimpanan dipakai oleh halaman Kelola Lokasi Penyimpanan (FR-06, UC-02)
-export default function LokasiPenyimpananForm({ editing, form, setForm, saving, onCancel, onSubmit }) {
+export default function LokasiPenyimpananForm({ editing, form, setForm, saving, error, onCancel, onSubmit }) {
   const isEdit = Boolean(editing);
 
   function set(field, value) {
@@ -17,7 +19,7 @@ export default function LokasiPenyimpananForm({ editing, form, setForm, saving, 
         style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 20, borderBottom: '1px solid #e2e8f0' }}>
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#e2e5ea', flexShrink: 0 }} />
+          <FormIcon icon={LocationIcon} />
           <div>
             <div style={{ fontWeight: 700, fontSize: 16 }}>
               {isEdit ? 'Ubah Lokasi Penyimpanan' : 'Tambah Lokasi Penyimpanan Baru'}
@@ -31,6 +33,7 @@ export default function LokasiPenyimpananForm({ editing, form, setForm, saving, 
         </div>
 
         <div style={{ padding: 24 }}>
+          {error && <div role="alert" style={{ color: '#dc2626', marginBottom: 16 }}>{error}</div>}
           <div style={{
             background: '#eff6ff', border: '1px solid #dbeafe', borderRadius: 14, padding: 20,
           }}

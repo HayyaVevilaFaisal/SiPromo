@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axiosClient from '../../api/axiosClient';
-import ConfirmDialog from '../../components/common/ConfirmDialog';
+// import ConfirmDialog from '../../components/common/ConfirmDialog';
 import PageHeader from '../../components/common/PageHeader';
 import IconButton from '../../components/common/IconButton';
 import { Th, Td } from '../../components/common/DataTable';
@@ -11,19 +12,24 @@ const emptyForm = { nama: '', deskripsi: '' };
 
 // FR-06, UC-02 - Kelola Data Lokasi Penyimpanan
 export default function LokasiPenyimpanan() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const dariAset = location.state?.dariAset;
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('aktif');
-  const [view, setView] = useState('list'); // 'list' | 'form'
+  // const [status, setStatus] = useState('aktif');
+  const [view, setView] = useState(dariAset ? 'form' : 'list'); // 'list' | 'form'
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [confirmTarget, setConfirmTarget] = useState(null);
+  const [error, setError] = useState('');
+  // const [confirmTarget, setConfirmTarget] = useState(null);
 
   async function fetchData(params = {}) {
     setLoading(true);
-    const res = await axiosClient.get('/lokasi-penyimpanan', { params: { search, status, ...params } });
+//     const res = await axiosClient.get('/lokasi-penyimpanan', { params: { search, status, ...params } });
+    const res = await axiosClient.get('/lokasi-penyimpanan', { params: { search, ...params } });
     setData(res.data);
     setLoading(false);
   }
@@ -31,49 +37,68 @@ export default function LokasiPenyimpanan() {
   useEffect(() => { fetchData(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function openCreateForm() {
+    setError('');
     setEditing(null);
     setForm(emptyForm);
     setView('form');
   }
 
   function openEditForm(row) {
+    setError('');
     setEditing(row);
     setForm({ nama: row.nama, deskripsi: row.deskripsi ?? '' });
     setView('form');
   }
 
   function closeForm() {
+    if (dariAset) {
+      navigate('/aset', { replace: true, state: { kembaliDariLokasi: dariAset } });
+      return;
+    }
     setView('list');
     setEditing(null);
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
+    setError('');
     setSaving(true);
     try {
       if (editing) {
         await axiosClient.put(`/lokasi-penyimpanan/${editing.lokasi_penyimpanan_id}`, form);
       } else {
-        await axiosClient.post('/lokasi-penyimpanan', form);
+        const res = await axiosClient.post('/lokasi-penyimpanan', form);
+        if (dariAset) {
+          navigate('/aset', {
+            replace: true,
+            state: { kembaliDariLokasi: {
+              ...dariAset,
+              form: { ...dariAset.form, lokasi_penyimpanan_id: String(res.data.lokasi_penyimpanan_id) },
+            } },
+          });
+          return;
+        }
       }
       closeForm();
       fetchData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal menyimpan lokasi penyimpanan. Silakan coba lagi.');
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleDelete() {
-    if (!confirmTarget) return;
-    await axiosClient.patch(`/lokasi-penyimpanan/${confirmTarget.lokasi_penyimpanan_id}/arsip`);
-    setConfirmTarget(null);
-    fetchData();
-  }
+//   async function handleDelete() {
+//     if (!confirmTarget) return;
+//     await axiosClient.delete(`/lokasi-penyimpanan/${confirmTarget.lokasi_penyimpanan_id}`);
+//     setConfirmTarget(null);
+//     fetchData();
+//   }
 
-  function handleStatusChange(value) {
-    setStatus(value);
-    fetchData({ status: value });
-  }
+//   function handleStatusChange(value) {
+//     setStatus(value);
+//     fetchData({ status: value });
+//   }
 
   if (view === 'form') {
     return (
@@ -82,6 +107,7 @@ export default function LokasiPenyimpanan() {
         form={form}
         setForm={setForm}
         saving={saving}
+        error={error}
         onCancel={closeForm}
         onSubmit={handleSubmit}
       />
@@ -105,6 +131,7 @@ export default function LokasiPenyimpanan() {
         </div>
 
         <div style={{ display: 'flex', gap: 10 }}>
+{/* Kode lama, dipertahankan untuk penggunaan kembali:
           <select
             value={status}
             onChange={(e) => handleStatusChange(e.target.value)}
@@ -115,8 +142,9 @@ export default function LokasiPenyimpanan() {
           >
             <option value="">Semua Status</option>
             <option value="aktif">Aktif</option>
-            <option value="arsip">Terhapus</option>
+            <option value="terhapus">Terhapus</option>
           </select>
+*/}
 
           <button
             type="button"
@@ -138,7 +166,7 @@ export default function LokasiPenyimpanan() {
               <tr style={{ background: '#f9fafb' }}>
                 <Th>Nama Lokasi Penyimpanan</Th>
                 <Th>Deskripsi</Th>
-                <Th>Jumlah Aset</Th>
+                <Th>Jenis Aset</Th>
                 <Th>Aksi</Th>
               </tr>
             </thead>
@@ -154,11 +182,12 @@ export default function LokasiPenyimpanan() {
                     <Td>{row.deskripsi || '-'}</Td>
                     <Td>
                       <span style={{ background: '#eff6ff', color: '#155dfc', padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 600 }}>
-                        {row.jumlah_aset} Aset
+                        {row.jumlah_aset} jenis aset
                       </span>
                     </Td>
                     <Td>
-                      {row.is_active ? (
+                      {/* Kode lama, dipertahankan untuk penggunaan kembali:
+{row.is_active ? (
                         <div style={{ display: 'flex', gap: 8 }}>
                           <IconButton title="Ubah" bg="#eef2ff" color="#4338ca" onClick={() => openEditForm(row)}>
                             <EditIcon />
@@ -170,6 +199,10 @@ export default function LokasiPenyimpanan() {
                       ) : (
                         <span style={{ fontSize: 12, color: '#9ca3af' }}>Terhapus</span>
                       )}
+*/}
+                      <IconButton title="Ubah" bg="#eef2ff" color="#4338ca" onClick={() => openEditForm(row)}>
+                        <EditIcon />
+                      </IconButton>
                     </Td>
                   </tr>
                 ))
@@ -179,6 +212,7 @@ export default function LokasiPenyimpanan() {
         </div>
       </div>
 
+{/* Kode lama, dipertahankan untuk penggunaan kembali:
       <ConfirmDialog
         open={!!confirmTarget}
         icon={<TrashIcon size={22} />}
@@ -189,6 +223,7 @@ export default function LokasiPenyimpanan() {
         onConfirm={handleDelete}
         confirmLabel="Ya, Hapus"
       />
+*/}
     </div>
   );
 }

@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import axiosClient from '../../api/axiosClient';
-import ConfirmDialog from '../../components/common/ConfirmDialog';
+// import ConfirmDialog from '../../components/common/ConfirmDialog';
 import PageHeader from '../../components/common/PageHeader';
 import IconButton from '../../components/common/IconButton';
 import { Th, Td } from '../../components/common/DataTable';
 import { SearchIcon, PlusIcon, EditIcon, TrashIcon } from '../../components/common/icons';
 import TahunAjaranForm from './TahunAjaranForm';
-import { deriveTahun } from './deriveTahun';
+// import { deriveTahun } from './deriveTahun';
+import { validateSemesterDates } from './semesterDates';
 
-const emptyForm = { semester: 'Ganjil', tanggal_mulai: '', tanggal_selesai: '' };
+// const emptyForm = { semester: 'Ganjil', tanggal_mulai: '', tanggal_selesai: '' };
+const emptyForm = { tahun_awal: '', semester: 'Ganjil', tanggal_mulai: '', tanggal_selesai: '' };
 
 function formatTanggal(value) {
   if (!value) return '-';
@@ -31,17 +33,18 @@ export default function TahunAjaran() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('aktif');
+  // const [status, setStatus] = useState('aktif');
   const [view, setView] = useState('list'); // 'list' | 'form'
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [confirmTarget, setConfirmTarget] = useState(null);
+  // const [confirmTarget, setConfirmTarget] = useState(null);
   const [error, setError] = useState('');
 
   async function fetchData(params = {}) {
     setLoading(true);
-    const res = await axiosClient.get('/tahun-ajaran', { params: { search, status, ...params } });
+//     const res = await axiosClient.get('/tahun-ajaran', { params: { search, status, ...params } });
+    const res = await axiosClient.get('/tahun-ajaran', { params: { search, ...params } });
     setData(res.data);
     setLoading(false);
   }
@@ -58,6 +61,7 @@ export default function TahunAjaran() {
   function openEditForm(row) {
     setEditing(row);
     setForm({
+      tahun_awal: row.tahun.split('/')[0],
       semester: row.semester,
       tanggal_mulai: toDateInputValue(row.tanggal_mulai),
       tanggal_selesai: toDateInputValue(row.tanggal_selesai),
@@ -75,14 +79,22 @@ export default function TahunAjaran() {
     e.preventDefault();
     setError('');
 
-    if (new Date(form.tanggal_selesai) < new Date(form.tanggal_mulai)) {
-      setError('Tanggal selesai harus setelah tanggal mulai.');
+    if (!/^[1-9][0-9]{3}$/.test(form.tahun_awal) || Number(form.tahun_awal) > 9998) {
+      setError('Masukkan tahun awal berupa 4 digit antara 1000 dan 9998.');
+      return;
+    }
+
+    const dateError = validateSemesterDates(form.tanggal_mulai, form.tanggal_selesai, form.tahun_awal);
+    if (dateError) {
+      setError(dateError);
       return;
     }
 
     setSaving(true);
     try {
-      const payload = { ...form, tahun: deriveTahun(form.tanggal_mulai, form.tanggal_selesai, form.semester) };
+      // const payload = { ...form, tahun: deriveTahun(form.tanggal_mulai, form.tanggal_selesai, form.semester) };
+      const { tahun_awal, ...details } = form;
+      const payload = { ...details, tahun: `${tahun_awal}/${Number(tahun_awal) + 1}` };
       if (editing) {
         await axiosClient.put(`/tahun-ajaran/${editing.tahun_ajaran_id}`, payload);
       } else {
@@ -97,17 +109,17 @@ export default function TahunAjaran() {
     }
   }
 
-  async function handleDelete() {
-    if (!confirmTarget) return;
-    await axiosClient.patch(`/tahun-ajaran/${confirmTarget.tahun_ajaran_id}/arsip`);
-    setConfirmTarget(null);
-    fetchData();
-  }
+//   async function handleDelete() {
+//     if (!confirmTarget) return;
+//     await axiosClient.delete(`/tahun-ajaran/${confirmTarget.tahun_ajaran_id}`);
+//     setConfirmTarget(null);
+//     fetchData();
+//   }
 
-  function handleStatusChange(value) {
-    setStatus(value);
-    fetchData({ status: value });
-  }
+//   function handleStatusChange(value) {
+//     setStatus(value);
+//     fetchData({ status: value });
+//   }
 
   if (view === 'form') {
     return (
@@ -131,7 +143,7 @@ export default function TahunAjaran() {
         <div style={{ position: 'relative', flex: 1, maxWidth: 360 }}>
           <SearchIcon style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
           <input
-            placeholder="Cari tahun ajaran..."
+            placeholder="Cari tahun, semester, tanggal atau bulan..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && fetchData()}
@@ -140,6 +152,7 @@ export default function TahunAjaran() {
         </div>
 
         <div style={{ display: 'flex', gap: 10 }}>
+{/* Kode lama, dipertahankan untuk penggunaan kembali:
           <select
             value={status}
             onChange={(e) => handleStatusChange(e.target.value)}
@@ -150,8 +163,9 @@ export default function TahunAjaran() {
           >
             <option value="">Semua Status</option>
             <option value="aktif">Aktif</option>
-            <option value="arsip">Terhapus</option>
+            <option value="terhapus">Terhapus</option>
           </select>
+*/}
 
           <button
             type="button"
@@ -175,15 +189,14 @@ export default function TahunAjaran() {
                 <Th>Semester</Th>
                 <Th>Tanggal Mulai</Th>
                 <Th>Tanggal Selesai</Th>
-                <Th>Jumlah Kegiatan</Th>
                 <Th>Aksi</Th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Memuat data...</td></tr>
+                <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Memuat data...</td></tr>
               ) : data.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Belum ada data.</td></tr>
+                <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Belum ada data.</td></tr>
               ) : (
                 data.map((row) => (
                   <tr key={row.tahun_ajaran_id}>
@@ -196,12 +209,8 @@ export default function TahunAjaran() {
                     <Td>{formatTanggal(row.tanggal_mulai)}</Td>
                     <Td>{formatTanggal(row.tanggal_selesai)}</Td>
                     <Td>
-                      <span style={{ background: '#eff6ff', color: '#155dfc', padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 600 }}>
-                        {row.jumlah_kegiatan} Kegiatan
-                      </span>
-                    </Td>
-                    <Td>
-                      {row.is_active ? (
+                      {/* Kode lama, dipertahankan untuk penggunaan kembali:
+{row.is_active ? (
                         <div style={{ display: 'flex', gap: 8 }}>
                           <IconButton title="Ubah" bg="#eef2ff" color="#4338ca" onClick={() => openEditForm(row)}>
                             <EditIcon />
@@ -213,6 +222,10 @@ export default function TahunAjaran() {
                       ) : (
                         <span style={{ fontSize: 12, color: '#9ca3af' }}>Terhapus</span>
                       )}
+*/}
+                      <IconButton title="Ubah" bg="#eef2ff" color="#4338ca" onClick={() => openEditForm(row)}>
+                        <EditIcon />
+                      </IconButton>
                     </Td>
                   </tr>
                 ))
@@ -222,6 +235,7 @@ export default function TahunAjaran() {
         </div>
       </div>
 
+{/* Kode lama, dipertahankan untuk penggunaan kembali:
       <ConfirmDialog
         open={!!confirmTarget}
         icon={<TrashIcon size={22} />}
@@ -232,6 +246,7 @@ export default function TahunAjaran() {
         onConfirm={handleDelete}
         confirmLabel="Ya, Hapus"
       />
+*/}
     </div>
   );
 }

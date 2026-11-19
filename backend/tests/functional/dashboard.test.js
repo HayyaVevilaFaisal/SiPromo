@@ -1,3 +1,4 @@
+jest.mock('../../src/middlewares/authMiddleware', () => require('../helpers/businessAuth'));
 // Functional test - endpoint /api/dashboard (FR-02, UC-08).
 // resolveTahunAjaran() punya 3 jalur: (1) tahunAjaranId eksplisit di query string,
 // (2) tanpa id -> pakai tahun ajaran yang ditandai "sedang berjalan" (is_active=true),
@@ -122,13 +123,13 @@ describe('/api/dashboard', () => {
     const res = await request(app).get('/api/dashboard?tahunAjaranId=5').set('Authorization', authHeader());
 
     expect(res.body.chart_penggunaan_bulanan).toEqual([
-      { label: 'Jan', total_unit: 0 },
-      { label: 'Feb', total_unit: 300 },
-      { label: 'Mar', total_unit: 0 },
-      { label: 'Apr', total_unit: 0 },
-      { label: 'Mei', total_unit: 0 },
-      { label: 'Jun', total_unit: 0 },
-      { label: 'Jul', total_unit: 0 },
+      { label: 'Jan', total_unit: 0, is_bulan_aktif: false },
+      { label: 'Feb', total_unit: 300, is_bulan_aktif: false },
+      { label: 'Mar', total_unit: 0, is_bulan_aktif: false },
+      { label: 'Apr', total_unit: 0, is_bulan_aktif: false },
+      { label: 'Mei', total_unit: 0, is_bulan_aktif: false },
+      { label: 'Jun', total_unit: 0, is_bulan_aktif: false },
+      { label: 'Jul', total_unit: 0, is_bulan_aktif: false },
     ]);
   });
 });

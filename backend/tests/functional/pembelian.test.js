@@ -1,3 +1,4 @@
+jest.mock('../../src/middlewares/authMiddleware', () => require('../helpers/businessAuth'));
 // Functional test - endpoint /api/pembelian-aset (FR-13 s.d. FR-17, UC-07).
 // Untuk createPembelian/updatePembelian (transaksional, pakai pool.connect), dipakai
 // helper createMockClient dari tests/helpers/mockPool.js. Middleware upload multer di-mock
@@ -50,7 +51,7 @@ describe('/api/pembelian-aset', () => {
     expect(res.body).toEqual({ message: 'Status pembelian tidak valid (harus salah satu dari: Belum Bayar, DP, Lunas)' });
   });
 
-  test('POST / -> 201 sukses, harga satuan diambil dari aset (bukan dari body klien)', async () => {
+  test('POST / -> 201 sukses, harga satuan input pengguna disimpan', async () => {
     const asetRow = { aset_id: 5, nama: 'Pulpen Informatika', harga: '4500.00', stok: 200 };
     const client = createMockClient([
       {}, // BEGIN
@@ -64,15 +65,16 @@ describe('/api/pembelian-aset', () => {
     pool.connect.mockResolvedValue(client);
 
     const res = await request(app).post('/api/pembelian-aset').set('Authorization', authHeader())
-      .send({ ...validBody, daftar_aset: [{ aset_id: 5, qty_in: 10, unit_price: 1 }] }); // unit_price klien harus diabaikan
+      .send({ ...validBody, daftar_aset: [{ aset_id: 5, qty_in: 10, unit_price: 1 }] }); // harga satuan boleh diganti pengguna
 
     expect(res.status).toBe(201);
     expect(res.body.pembelian).toEqual({ pembelian_id: 9, status: 'Lunas' });
     expect(res.body.aset[0].stok).toBe(210);
-    expect(client.query.mock.calls.find((c) => String(c[0]).includes('INSERT INTO detail_pembelian'))[1]).toEqual([9, 5, 10, '4500.00']);
+    expect(client.query.mock.calls.find((c) => String(c[0]).includes('INSERT INTO detail_pembelian'))[1]).toEqual([9, 5, 10, 1]);
   });
 
   test('PATCH /:id/bon -> 400 jika tidak ada file (middleware upload di-mock tidak pernah mengisi req.file)', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ can_edit: true }] });
     const res = await request(app).patch('/api/pembelian-aset/1/bon').set('Authorization', authHeader());
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ message: 'File bon pembelian wajib diunggah' });
@@ -84,7 +86,14 @@ describe('/api/pembelian-aset', () => {
   });
 
   test('PATCH /:id/status -> 200 jika status valid', async () => {
-    pool.query.mockResolvedValueOnce({ rows: [{ pembelian_id: 1, status: 'DP' }] });
+//     pool.query.mockResolvedValueOnce({ rows: [{ pembelian_id: 1, status: 'DP' }] });
+    const client = { release: jest.fn(), query: jest.fn(async (sql, params) => {
+      if (sql.includes('FROM tahun_ajaran periode_berjalan')) return { rows: [{ tahun_ajaran_id: 2 }] };
+      if (sql.includes('SELECT * FROM detail_pembelian')) return { rows: [{ aset_id: 5, qty_in: 10, unit_price: 1 }] };
+      if (sql.includes('SELECT * FROM aset')) return { rows: [{ aset_id: 5, stok: 10, harga: 1 }] };
+      return { rows: [{ pembelian_id: 1, tahun_ajaran_id: 2, vendor_id: 1, status: sql.includes('UPDATE pembelian') ? params[1] : 'Belum Bayar' }] };
+    }) };
+    pool.connect.mockResolvedValue(client);
     const res = await request(app).patch('/api/pembelian-aset/1/status').set('Authorization', authHeader()).send({ status: 'DP' });
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('DP');

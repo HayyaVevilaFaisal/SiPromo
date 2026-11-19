@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 
 // Token JWT valid untuk dipakai sebagai header Authorization di test functional (Supertest).
 function authHeader(payload = { id: 1, email: 'pic.promosi@if.unpar.ac.id', nama: 'PIC Promosi' }) {
-  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+  const token = jwt.sign({ ...payload, auth: 'google' }, process.env.JWT_SECRET, { expiresIn: '1h' });
   return `Bearer ${token}`;
 }
 

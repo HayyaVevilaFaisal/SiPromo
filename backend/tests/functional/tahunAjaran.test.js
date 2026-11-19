@@ -1,3 +1,4 @@
+jest.mock('../../src/middlewares/authMiddleware', () => require('../helpers/businessAuth'));
 // Functional test - endpoint /api/tahun-ajaran (FR-07, UC-04).
 // Turut menelusuri cabang-cabang deriveTahun() secara tidak langsung lewat HTTP (fungsi itu
 // sendiri tidak diekspor dari controller, jadi diuji lewat efeknya pada response createTahunAjaran).
@@ -28,7 +29,7 @@ describe('/api/tahun-ajaran', () => {
       tahun: '2025/2026', semester: 'Ganjil', tanggal_mulai: '2025-12-31', tanggal_selesai: '2025-08-01',
     });
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({ message: 'Tanggal selesai harus setelah tanggal mulai' });
+    expect(res.body).toEqual({ message: 'Tanggal selesai harus setelah tanggal mulai.' });
   });
 
   test('POST / -> 400 jika "tahun" tidak konsisten dengan semester Ganjil (seharusnya tahun/tahun+1)', async () => {
@@ -49,13 +50,12 @@ describe('/api/tahun-ajaran', () => {
     expect(res.body).toEqual(row);
   });
 
-  test('POST / -> 201 kasus khusus tanggal_mulai === tanggal_selesai (format tahun/tahun)', async () => {
-    const row = { tahun: '2025/2025', semester: 'Ganjil', tanggal_mulai: '2025-06-01', tanggal_selesai: '2025-06-01' };
-    pool.query.mockResolvedValueOnce({ rows: [row] });
+  test('POST / -> 400 jika tanggal mulai dan selesai sama', async () => {
     const res = await request(app).post('/api/tahun-ajaran').set('Authorization', authHeader()).send({
       tahun: '2025/2025', semester: 'Ganjil', tanggal_mulai: '2025-06-01', tanggal_selesai: '2025-06-01',
     });
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Tanggal selesai harus setelah tanggal mulai.');
   });
 
   test('POST / -> 400 jika kombinasi tahun & semester sudah ada (unique violation kode 23505)', async () => {

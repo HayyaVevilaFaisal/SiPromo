@@ -1,3 +1,4 @@
+jest.mock('../../src/middlewares/authMiddleware', () => require('../helpers/businessAuth'));
 // Functional test - endpoint /api/lokasi-penyimpanan (FR-06, UC-02).
 
 jest.mock('../../src/config/db', () => ({ query: jest.fn() }));
